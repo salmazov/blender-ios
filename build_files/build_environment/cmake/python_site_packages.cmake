@@ -23,6 +23,8 @@ ExternalProject_Add(external_python_site_packages
   PREFIX ${BUILD_DIR}/site_packages
 
   # We do not build numpy, cython, or zstandard here as the pip builds are not reproducible.
+  #
+  # XXX: It installs tothe host Python, not to the iOS one.
   INSTALL_COMMAND ${PYTHON_BINARY} -m pip install --no-cache-dir ${SITE_PACKAGES_EXTRA}
   setuptools==${SETUPTOOLS_VERSION}
   meson-python==${MESON_PYTHON_VERSION}

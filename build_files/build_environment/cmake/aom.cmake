@@ -20,6 +20,19 @@ if(WIN32 AND NOT BLENDER_PLATFORM_WINDOWS_ARM)
   set(AOM_EXTRA_ARGS ${AOM_EXTRA_ARGS}-DCMAKE_ASM_NASM_COMPILER=)
 endif()
 
+if(WITH_APPLE_CROSSPLATFORM)
+  # Disable optimizations on iPad.
+  set(AOM_EXTRA_ARGS
+    ${AOM_EXTRA_ARGS}
+    -DAOM_TARGET_CPU=generic
+    -DENABLE_DOCS=0
+  )
+endif()
+
+# This is slightly different from all other deps in the way that
+# aom uses cmake as a build system, but still needs the environment setup
+# to include perl so we manually setup the environment and call
+# cmake directly for the configure, build and install commands.
 if(WIN32)
   # This is slightly different from all other deps in the way that
   # aom uses cmake as a build system, but still needs the environment setup

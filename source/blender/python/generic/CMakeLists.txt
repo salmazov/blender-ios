@@ -10,6 +10,7 @@ set(INC
 set(INC_SYS
 )
 
+
 set(SRC
   bl_math_py_api.cc
   blf_py_api.cc
@@ -33,6 +34,11 @@ set(SRC
   # header-only
   python_utildefines.hh
 )
+
+if(WITH_OPENGL_BACKEND)
+  list(APPEND SRC bgl.cc)
+  list(APPEND SRC bgl.h)
+endif()
 
 set(LIB
   PRIVATE bf::blenkernel

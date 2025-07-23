@@ -582,6 +582,10 @@ enum GHOST_TKey {
   GHOST_kKeyF22,
   GHOST_kKeyF23,
   GHOST_kKeyF24,
+  
+#if (WITH_APPLE_CROSSPLATFORM)
+  GHOST_kKeyTextEdit,
+#endif
 
   /* Multimedia keypad buttons. */
   GHOST_kKeyMediaPlay,
@@ -671,6 +675,8 @@ struct GHOST_TEventTrackpadData {
   int32_t deltaY;
   /** The delta is inverted from the device due to system preferences. */
   char isDirectionInverted;
+  /** Number of fingers triggering trackpad or touch event. */
+  uint numFingers;
 };
 
 enum GHOST_TDragnDropTypes {
@@ -1386,3 +1392,44 @@ enum GHOST_NDOF_ButtonT {
 
   GHOST_NDOF_BUTTON_USER = 0x10000
 };
+
+#if (WITH_APPLE_CROSSPLATFORM)
+
+/** How to setup an onscreen keyboard */
+struct GHOST_KeyboardProperties {
+
+  /* Initial starting state of text box. */
+  enum text_field_state {
+    move_cursor_to_start,
+    move_cursor_to_end,
+    select_all_text,
+    select_text_range
+  };
+  text_field_state inital_text_state;
+  int text_select_range[2];
+
+  /* Type of keyboard to display. */
+  enum keyboard_type_desc {
+    ascii_keyboard_type,
+    decimal_numpad_keyboard_type,
+    numpad_keyboard_type
+  };
+  keyboard_type_desc keyboard_type;
+
+  /* Size is in points. */
+  float font_size;
+  /* Format is RGBA. */
+  float font_color[4];
+
+  /* On-screen location of text box. */
+  float text_box_origin[2];
+  float text_box_size[2];
+
+  /* Any tips to display next to keyboard input. */
+  const char *tip_text;
+
+  /* Initial string. */
+  const char *text_string;
+};
+
+#endif

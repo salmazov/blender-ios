@@ -357,6 +357,147 @@ bool MTLShader::finalize(const shader::ShaderCreateInfo *info)
   valid_ = true;
 
   if (is_compute) {
+    /* Compute path. */
+    BLI_assert([compute_function_name_ length] > 0);
+    BLI_assert([shd_builder_->msl_source_compute_ length] > 0);
+  }
+  else {
+    /* Vertex/Fragment path. */
+    BLI_assert([vertex_function_name_ length] > 0);
+    BLI_assert([fragment_function_name_ length] > 0);
+    BLI_assert([shd_builder_->msl_source_vert_ length] > 0);
+  }
+
+  @autoreleasepool {
+    MTLCompileOptions *options = [[[MTLCompileOptions alloc] init] autorelease];
+    options.languageVersion = MTLLanguageVersion2_2;
+    options.fastMathEnabled = YES;
+    options.preserveInvariance = YES;
+
+#ifndef WITH_APPLE_CROSSPLATFORM
+    /* Raster order groups for tile data in struct require Metal 2.3.
+     * Retaining Metal 2.2. for old shaders to maintain backwards
+     * compatibility for existing features. */
+    if (info->subpass_inputs_.is_empty() == false)
+#endif 
+    {
+      options.languageVersion = MTLLanguageVersion2_3;
+    }
+
+#if defined(MAC_OS_VERSION_14_0) || defined(WITH_APPLE_CROSSPLATFORM)
+    if (@available(macOS 14.00, ios 17.00, *)) {
+      /* Texture atomics require Metal 3.1. */
+      if (bool(info->builtins_ & BuiltinBits::TEXTURE_ATOMIC)) {
+        options.languageVersion = MTLLanguageVersion3_1;
+      }
+    }
+#endif
+
+    NSString *source_to_compile = shd_builder_->msl_source_vert_;
+
+    /* Vertex/Fragment compile stages 0 and/or 1.
+     * Compute shaders compile as stage 2. */
+    ShaderStage initial_stage = (is_compute) ? ShaderStage::COMPUTE : ShaderStage::VERTEX;
+    ShaderStage src_stage = initial_stage;
+    uint8_t total_stages = (is_compute) ? 1 : 2;
+
+    for (int stage_count = 0; stage_count < total_stages; stage_count++) {
+
+      source_to_compile = (src_stage == ShaderStage::VERTEX) ?
+                              shd_builder_->msl_source_vert_ :
+                              ((src_stage == ShaderStage::COMPUTE) ?
+                                   shd_builder_->msl_source_compute_ :
+                                   shd_builder_->msl_source_frag_);
+
+      /* Concatenate common source. */
+      NSString *str = [NSString stringWithUTF8String:datatoc_mtl_shader_common_msl];
+      NSString *source_with_header_a = [str stringByAppendingString:source_to_compile];
+
+      /* Inject unique context ID to avoid cross-context shader cache collisions.
+       * Required on macOS 11.0. */
+      NSString *source_with_header = source_with_header_a;
+      [source_with_header retain];
+      
+      /* Prepare Shader Library. */
+      NSError *error = nullptr;
+      id<MTLLibrary> library = [device newLibraryWithSource:source_with_header
+                                                    options:options
+                                                      error:&error];
+      if (error) {
+        /* Only exit out if genuine error and not warning. */
+        if ([[error localizedDescription] rangeOfString:@"Compilation succeeded"].location ==
+            NSNotFound)
+        {
+          const char *errors_c_str = [[error localizedDescription] UTF8String];
+          const StringRefNull source = (is_compute) ? shd_builder_->glsl_compute_source_ :
+                                                      shd_builder_->glsl_fragment_source_;
+
+          MTLLogParser parser;
+          print_log({source}, errors_c_str, to_string(src_stage), true, &parser);
+
+          /* Release temporary compilation resources. */
+          delete shd_builder_;
+          shd_builder_ = nullptr;
+          return false;
+        }
+      }
+
+      BLI_assert(library != nil);
+
+      switch (src_stage) {
+        case ShaderStage::VERTEX: {
+          /* Store generated library and assign debug name. */
+          shader_library_vert_ = library;
+          shader_library_vert_.label = [NSString stringWithUTF8String:this->name];
+        } break;
+        case ShaderStage::FRAGMENT: {
+          /* Store generated library for fragment shader and assign debug name. */
+          shader_library_frag_ = library;
+          shader_library_frag_.label = [NSString stringWithUTF8String:this->name];
+        } break;
+        case ShaderStage::COMPUTE: {
+          /* Store generated library for fragment shader and assign debug name. */
+          shader_library_compute_ = library;
+          shader_library_compute_.label = [NSString stringWithUTF8String:this->name];
+        } break;
+        case ShaderStage::ANY: {
+          /* Suppress warnings. */
+          BLI_assert_unreachable();
+        } break;
+      }
+
+      [source_with_header autorelease];
+
+      /* Move onto next compilation stage. */
+      if (!is_compute) {
+        src_stage = ShaderStage::FRAGMENT;
+      }
+      else {
+        break;
+      }
+    }
+
+    /* Create descriptors.
+     * Each shader type requires a differing descriptor. */
+    if (!is_compute) {
+      /* Prepare Render pipeline descriptor. */
+      pso_descriptor_ = [[MTLRenderPipelineDescriptor alloc] init];
+      pso_descriptor_.label = [NSString stringWithUTF8String:this->name];
+    }
+
+    /* Shader has successfully been created. */
+    valid_ = true;
+
+    /* Prepare backing data storage for local uniforms. */
+    const MTLShaderBufferBlock &push_constant_block = mtl_interface->get_push_constant_block();
+    if (push_constant_block.size > 0) {
+      push_constant_data_ = MEM_callocN(push_constant_block.size, __func__);
+      this->push_constant_bindstate_mark_dirty(true);
+    }
+    else {
+      push_constant_data_ = nullptr;
+    }
+
     /* If this is a compute shader, bake base PSO for compute straight-away.
      * NOTE: This will compile the base unspecialized variant. */
 

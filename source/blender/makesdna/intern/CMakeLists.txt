@@ -73,12 +73,13 @@ set(SRC
   ${dna_header_string_file}
 )
 
-# BLI_mempool.cc needs these files for ThreadMutex when
-# compiling in address sanitizer mode.
-if(WITH_COMPILER_ASAN)
-  list(APPEND SRC
-  )
-endif()
+if(NOT WITH_CROSSCOMPILED_TOOLS)
+  # BLI_mempool.cc needs these files for ThreadMutex when
+  # compiling in address sanitizer mode.
+  if(WITH_COMPILER_ASAN)
+    list(APPEND SRC
+    )
+  endif()
 
 # `SRC_DNA_INC` is defined in the parent directory.
 
@@ -91,6 +92,19 @@ blender_target_include_dirs(makesdna ${INC})
 blender_target_include_dirs_sys(makesdna ${INC_SYS})
 target_link_libraries(makesdna ${LIB})
 target_link_libraries(makesdna PRIVATE bf::dependencies::pthreads)
+  add_executable(makesdna ${SRC} ${SRC_DNA_INC})
+  setup_platform_linker_flags(makesdna)
+  setup_platform_linker_libs(makesdna)
+  blender_target_include_dirs(makesdna ${INC})
+  blender_target_include_dirs_sys(makesdna ${INC_SYS})
+  target_link_libraries(makesdna ${LIB})
+
+  if(WIN32 AND NOT UNIX)
+    if(DEFINED PTHREADS_LIBRARIES)
+      target_link_libraries(makesdna PRIVATE ${PTHREADS_LIBRARIES})
+    endif()
+  endif()
+endif()
 
 # Output dna.cc
 add_custom_command(

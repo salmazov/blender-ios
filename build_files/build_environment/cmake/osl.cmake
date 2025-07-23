@@ -53,7 +53,9 @@ set(OSL_EXTRA_ARGS
   -Dpybind11_ROOT=${LIBDIR}/pybind11
   -DPython_ROOT=${LIBDIR}/python
   -DPython_EXECUTABLE=${PYTHON_BINARY}
+  -DPython3_ROOT=${LIBDIR}/python
   -DPython3_EXECUTABLE=${PYTHON_BINARY}
+  -DPython3_INCLUDE_DIR=${LIBDIR}/python/include/python${PYTHON_SHORT_VERSION}/
   -Dlibdeflate_DIR=${LIBDIR}/deflate/lib/cmake/libdeflate
 )
 
@@ -63,6 +65,34 @@ if(NOT (APPLE OR BLENDER_PLATFORM_WINDOWS_ARM))
     -DCUDA_TARGET_ARCH=sm_50
     -DCUDA_TOOLKIT_ROOT_DIR=${CUDAToolkit_ROOT}
   )
+endif()
+
+# IOS build has trouble locating correct builds
+if(WITH_APPLE_CROSSPLATFORM)
+  
+  # Use iOS utility to set some env vars to help us build for iOS
+  include(cmake/ios_defines.cmake)
+  ios_get_dependency_env_vars(OPENIMAGEIO OPENEXR IMATH LLVM PNG PUGIXML ROBINMAP DEFLATE PYBIND11)
+  
+  set(OSL_CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${IOSDEP_INCLUDES_STRING}")
+  set(OSL_CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${IOSDEP_INCLUDES_STRING}")
+  set(OSL_CMAKE_CXX_STANDARD_LIBRARIES "${CMAKE_CXX_STANDARD_LIBRARIES} ${IOSDEP_LIBDIRS_STRING} ${IOSDEP_LIBRARIES_STRING}")
+ 
+  # Disable bitcode for now as issues finding llvm bitcode generator
+  set(OSL_EXTRA_ARGS
+    ${OSL_EXTRA_ARGS}
+    -DCMAKE_C_FLAGS=${OSL_CMAKE_C_FLAGS}
+    -DCMAKE_CXX_FLAGS=${OSL_CMAKE_CXX_FLAGS}
+    -DCMAKE_CXX_STANDARD_LIBRARIES=${OSL_CMAKE_CXX_STANDARD_LIBRARIES}
+    -DOSL_BUILD_SHADERS=OFF
+    -DUSE_LLVM_BITCODE=OFF
+    ${IOSDEP_DEFINES}
+  )
+
+  # iOS patch removes system() calls and ensures bundles can build with correct compatibility.
+  set(OSL_PATCH_FILE  ${PATCH_DIR}/osl_ios.diff)
+else()
+  set(OSL_PATCH_FILE  ${PATCH_DIR}/osl.diff)
 endif()
 
 ExternalProject_Add(external_osl

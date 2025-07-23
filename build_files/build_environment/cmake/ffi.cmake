@@ -43,6 +43,13 @@ else()
       --with-pic
   )
 endif()
+if(WITH_APPLE_CROSSPLATFORM)
+  # Building for non-local architecture.
+  set(CROSS_COMPILE_FLAGS "--host=aarch64")
+else()
+  set(CROSS_COMPILE_FLAGS)
+endif()
+set(FFI_PATCH_FILE ${PATCH_DIR}/ffi.diff)
 
 ExternalProject_Add(external_ffi
   URL file://${PACKAGE_DIR}/${FFI_FILE}
@@ -55,6 +62,7 @@ ExternalProject_Add(external_ffi
     ${CONFIGURE_COMMAND} --prefix=${LIBDIR}/ffi
       --libdir=${LIBDIR}/ffi/lib/
       ${FFI_EXTRA_ARGS}
+      ${CROSS_COMPILE_FLAGS}
 
   BUILD_COMMAND ${CONFIGURE_ENV_FFI} &&
     cd ${BUILD_DIR}/ffi/src/external_ffi/ &&
@@ -63,6 +71,15 @@ ExternalProject_Add(external_ffi
   INSTALL_COMMAND ${CONFIGURE_ENV} &&
     cd ${BUILD_DIR}/ffi/src/external_ffi/ &&
     ${FFI_INSTALL}
+    make install
+
+  PATCH_COMMAND ${PATCH_CMD} -p 0 -d
+    ${BUILD_DIR}/ffi/src/external_ffi <
+    ${FFI_PATCH_FILE} &&
+    # Fix compilation errors on Apple Clang >= 17, remove when FFI is updated beyond 3.4.7, see PR #136934 for details.
+    ${PATCH_CMD} -p 1 -d
+    ${BUILD_DIR}/ffi/src/external_ffi <
+    ${PATCH_DIR}/ffi_apple_clang_17.diff
 
   INSTALL_DIR ${LIBDIR}/ffi
 )
@@ -97,4 +114,9 @@ elseif(WIN32)
       ${LIBDIR}/ffi/${FFI_PYTHON_TARGET_ARCH}/include/fficonfig.h
     DEPENDEES install
   )
+endif()
+
+if(WITH_APPLE_CROSSPLATFORM)
+  # Required to provide libs for IOS_PYTHON_STATIC_LIBS
+  harvest_rpath_lib(external_ffi ffi/lib ffi/lib "*.a")
 endif()

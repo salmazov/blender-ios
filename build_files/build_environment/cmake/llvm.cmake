@@ -29,11 +29,38 @@ else()
   set(LLVM_TARGETS ${LLVM_TARGETS}$<SEMICOLON>NVPTX)
 endif()
 
+if(WITH_APPLE_CROSSPLATFORM)
+  # Specify host machine Python and LLVM tools, to prevent local building.
+  # WIP: LLVM still tries to compile Tablegen for host machine ):
+  message("Setting Crosscompilation tools dir for LLVM: ${CMAKE_DEPS_CROSSCOMPILE_BUILDDIR}")
+  set(LLVM_PYTHON_ROOT_DIR ${CMAKE_DEPS_CROSSCOMPILE_BUILDDIR}/deps_arm64/Release/python)
+  set(LLVM_TOOL_COMPILE_ARGS
+    -DPython3_ROOT_DIR=${LLVM_PYTHON_ROOT_DIR}
+    -DPython3_EXECUTABLE=${LLVM_PYTHON_ROOT_DIR}/bin/python3
+    -DLLVM_USE_HOST_TOOLS=ON
+    -DLLVM_TOOLS_BINARY_DIR=${CMAKE_DEPS_CROSSCOMPILE_BUILDDIR}/deps_arm64/Release/llvm/bin
+    -DLLVM_NATIVE_TOOL_DIR=${CMAKE_DEPS_CROSSCOMPILE_BUILDDIR}/deps_arm64/Release/llvm/bin
+    -DLLVM_INCLUDE_RUNTIMES=ON
+    -DLLVM_TARGETS_TO_BUILD=AArch64$<SEMICOLON>ARM
+    -DLLVM_ENABLE_BACKTRACES=Off
+    -DLLVM_OPTIMIZED_TABLEGEN=OFF
+    -DLLVM_TABLEGEN_EXE:string=${CMAKE_DEPS_CROSSCOMPILE_BUILDDIR}/deps_arm64/Release/llvm/bin/llvm-tblgen
+    -DLLVM_ENABLE_PROJECTS=clang${LLVM_BUILD_CLANG_TOOLS_EXTRA}
+    -DLLVM_ENABLE_PROJECTS_USED=ON
+  )
+else()
+  set(LLVM_TOOL_COMPILE_ARGS
+    -DPython3_ROOT_DIR=${LIBDIR}/python/
+    -DPython3_EXECUTABLE=${PYTHON_BINARY}
+    -DLLVM_ENABLE_PROJECTS=clang${LLVM_BUILD_CLANG_TOOLS_EXTRA}
+    -DLLVM_TARGETS_TO_BUILD=${LLVM_TARGETS}
+  )
+endif()
+
 set(LLVM_EXTRA_ARGS
   -DLLVM_USE_CRT_RELEASE=MD
   -DLLVM_USE_CRT_DEBUG=MDd
   -DLLVM_INCLUDE_TESTS=OFF
-  -DLLVM_TARGETS_TO_BUILD=${LLVM_TARGETS}
   -DLLVM_INCLUDE_EXAMPLES=OFF
   -DLLVM_ENABLE_TERMINFO=OFF
   -DLLVM_BUILD_LLVM_C_DYLIB=OFF
@@ -65,7 +92,19 @@ else()
   set(LLVM_GENERATOR "Unix Makefiles")
 endif()
 
-ExternalProject_Add(external_llvm
+# LLVM does not switch over to cpp17 until llvm 16 and building ealier versions with
+# MSVC is leading to some crashes in ISPC. Switch back to their default on all platforms
+# for now.
+string(REPLACE "-DCMAKE_CXX_STANDARD=17" " " LLVM_CMAKE_FLAGS "${DEFAULT_CMAKE_FLAGS}")
+
+if(WITH_APPLE_CROSSPLATFORM)
+  set(LLVM_PATCH_DIFF ${PATCH_DIR}/llvm_ios.diff)
+else()
+  set(LLVM_PATCH_DIFF ${PATCH_DIR}/llvm.diff)
+endif()
+
+# short project name due to long filename issues on windows
+ExternalProject_Add(ll
   URL file://${PACKAGE_DIR}/${LLVM_FILE}
   DOWNLOAD_DIR ${DOWNLOAD_DIR}
   URL_HASH ${LLVM_HASH_TYPE}=${LLVM_HASH}
@@ -79,6 +118,14 @@ ExternalProject_Add(external_llvm
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${LIBDIR}/llvm
     ${DEFAULT_CMAKE_FLAGS}
+  PATCH_COMMAND ${PATCH_CMD} -p 1 -d
+    ${BUILD_DIR}/ll/src/ll <
+    ${LLVM_PATCH_DIFF}
+
+  CMAKE_ARGS
+    -DCMAKE_INSTALL_PREFIX=${LIBDIR}/llvm
+    ${LLVM_TOOL_COMPILE_ARGS}
+    ${LLVM_CMAKE_FLAGS}
     ${LLVM_EXTRA_ARGS}
 
   INSTALL_DIR ${LIBDIR}/llvm
@@ -132,7 +179,10 @@ if(UNIX)
   )
 endif()
 
-add_dependencies(
-  external_llvm
-  external_python
-)
+if(NOT WITH_APPLE_CROSSPLATFORM)
+  # If building for IOS, use host python.
+  add_dependencies(
+    ll
+    external_python
+  )
+endif()

@@ -267,6 +267,12 @@ int MetalDeviceQueue::num_concurrent_states(const size_t state_size) const
 {
   size_t state_count = 4194304;
 
+#  ifdef WITH_APPLE_CROSSPLATFORM
+  /* Return minimal default working set.
+   * TODO: Tune based on device and runtime status on iOS. */
+  return state_count;
+#  endif
+
   /* Increasing the state count doesn't notably benefit M1-family systems. */
   if (MetalInfo::get_apple_gpu_architecture(metal_device_->mtlDevice) != APPLE_M1) {
     const size_t max_recommended_working_set =

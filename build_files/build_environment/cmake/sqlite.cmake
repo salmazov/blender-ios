@@ -20,10 +20,23 @@ if(WIN32)
   )
 endif()
 
+if(WITH_APPLE_CROSSPLATFORM)
+  # Building for non-local architecture.
+  set(CROSS_COMPILE_FLAGS "--host=arm")
+else()
+  set(CROSS_COMPILE_FLAGS)
+endif()
+
 if(UNIX)
   if(NOT APPLE)
     set(SQLITE_LDFLAGS -Wl,--as-needed)
   endif()
+
+if(WITH_APPLE_CROSSPLATFORM)
+  # Flags from configure environment.
+  set(SQLITE_LDFLAGS ${PLATFORM_LDFLAGS})
+endif()
+
   set(SQLITE_CFLAGS "\
 -DSQLITE_SECURE_DELETE \
 -DSQLITE_ENABLE_COLUMN_METADATA \
@@ -43,9 +56,14 @@ if(UNIX)
 -DSQLITE_MAX_VARIABLE_NUMBER=250000 \
 -fPIC"
   )
-  set(SQLITE_CONFIGURE_ENV
-    ${SQLITE_CONFIGURE_ENV} &&
-    export LDFLAGS=${SQLITE_LDFLAGS} &&
+
+  if(WITH_APPLE_CROSSPLATFORM)
+    set(SQLITE_CFLAGS "${SQLITE_CFLAGS} ${PLATFORM_CFLAGS} -DSQLITE_NOHAVE_SYSTEM=1")
+  endif()
+  
+  set(SQLITE_CONFIGURE_ENV 
+    ${SQLITE_CONFIGURE_ENV} && 
+    export LDFLAGS=${SQLITE_LDFLAGS} && 
     export CFLAGS=${SQLITE_CFLAGS}
   )
   set(SQLITE_CONFIGURATION_ARGS
@@ -78,4 +96,30 @@ if(UNIX)
 
     INSTALL_DIR ${LIBDIR}/sqlite
   )
+endif()
+
+ExternalProject_Add(external_sqlite
+  URL file://${PACKAGE_DIR}/${SQLITE_FILE}
+  DOWNLOAD_DIR ${DOWNLOAD_DIR}
+  URL_HASH ${SQLITE_HASH_TYPE}=${SQLITE_HASH}
+  PREFIX ${BUILD_DIR}/sqlite
+
+  CONFIGURE_COMMAND ${SQLITE_CONFIGURE_ENV} &&
+    cd ${BUILD_DIR}/sqlite/src/external_sqlite/ &&
+    ${CONFIGURE_COMMAND} --prefix=${LIBDIR}/sqlite ${SQLITE_CONFIGURATION_ARGS} ${CROSS_COMPILE_FLAGS}
+
+  BUILD_COMMAND ${CONFIGURE_ENV} &&
+    cd ${BUILD_DIR}/sqlite/src/external_sqlite/ &&
+    make -j${MAKE_THREADS}
+
+  INSTALL_COMMAND ${CONFIGURE_ENV} &&
+    cd ${BUILD_DIR}/sqlite/src/external_sqlite/ &&
+    make install
+
+  INSTALL_DIR ${LIBDIR}/sqlite
+)
+
+if(WITH_APPLE_CROSSPLATFORM)
+  # Required to provide libs for IOS_PYTHON_STATIC_LIBS
+  harvest_rpath_lib(external_sqlite sqlite/lib sqlite/lib "*.a")
 endif()
