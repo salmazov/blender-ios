@@ -728,8 +728,10 @@ class USERPREF_PT_system_display_graphics(SystemPanel, CenterAlignMixIn, Panel):
 
         #is_apple_device = (platform.system() == 'Darwin') or (platform.system() == 'iOS') or (platform.system() == 'iPadOS')
         #return !is_apple_device
+        # is_apple_device = (platform.system() == 'Darwin') or (platform.system() == 'iOS') or (platform.system() == 'iPadOS')
+        # return !is_apple_device
         return platform.system() != 'Darwin'
-        
+
     def draw_centered(self, context, layout):
         prefs = context.preferences
         system = prefs.system

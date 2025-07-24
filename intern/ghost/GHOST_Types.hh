@@ -582,7 +582,7 @@ enum GHOST_TKey {
   GHOST_kKeyF22,
   GHOST_kKeyF23,
   GHOST_kKeyF24,
-  
+
 #if (WITH_APPLE_CROSSPLATFORM)
   GHOST_kKeyTextEdit,
 #endif
@@ -1397,6 +1397,7 @@ enum GHOST_NDOF_ButtonT {
 
 /** How to setup an onscreen keyboard */
 struct GHOST_KeyboardProperties {
+typedef struct GHOST_KeyboardProperties {
 
   /* Initial starting state of text box. */
   enum text_field_state {
@@ -1431,5 +1432,7 @@ struct GHOST_KeyboardProperties {
   /* Initial string. */
   const char *text_string;
 };
+
+} GHOST_KeyboardProperties;
 
 #endif
