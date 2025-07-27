@@ -61,6 +61,7 @@ id<MTLCommandBuffer> MTLCommandBufferManager::ensure_begin()
     BLI_assert(MTLCommandBufferManager::num_active_cmd_bufs_in_system <
     BLI_assert(MTLCommandBufferManager::num_active_cmd_bufs <
                GHOST_ContextMTL::max_command_buffer_count);
+               GHOST_ContextMetal::max_command_buffer_count);
 
     if (G.debug & G_DEBUG_GPU) {
       /* Debug: Enable Advanced Errors for GPU work execution. */
@@ -153,6 +154,7 @@ bool MTLCommandBufferManager::submit(bool wait)
   if (MTLCommandBufferManager::num_active_cmd_bufs_in_system >=
   if (MTLCommandBufferManager::num_active_cmd_bufs >=
       (GHOST_ContextMTL::max_command_buffer_count - 1))
+      (GHOST_ContextMetal::max_command_buffer_count - 1))
   {
     wait = true;
     MTL_LOG_WARNING(
