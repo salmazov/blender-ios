@@ -37,7 +37,6 @@ void openSubdiv_deleteEvaluatorCache(OpenSubdiv_EvaluatorCache *evaluator_cache)
   MEM_delete(evaluator_cache);
 }
 
-#ifndef WITH_APPLE_CROSSPLATFORM
 const char *openSubdiv_getGLSLPatchBasisSource()
 {
   /* Using a global string to avoid dealing with memory allocation/ownership. */
@@ -53,8 +52,11 @@ const char *openSubdiv_getGLSLPatchBasisSource()
 #endif
 #if defined(WITH_OPENGL_BACKEND) || defined(WITH_VULKAN_BACKEND)
     patch_basis_source += OpenSubdiv::Osd::GLSLPatchShaderSource::GetPatchBasisShaderSource();
+#ifdef __APPLE__
+    patch_basis_source = OpenSubdiv::Osd::MTLPatchShaderSource::GetPatchBasisShaderSource();
+#else
+    patch_basis_source = OpenSubdiv::Osd::GLSLPatchShaderSource::GetPatchBasisShaderSource();
 #endif
   }
   return patch_basis_source.c_str();
 }
-#endif

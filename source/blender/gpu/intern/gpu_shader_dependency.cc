@@ -549,7 +549,6 @@ void gpu_shader_dependency_init()
                     g_formats,
                     [](GPUSource &, GPUFunctionDictionary *, GPUPrintFormatMap *) {}));
                     [](GPUSource &, GPUFunctionDictionnary *, GPUPrintFormatMap *) {}));
-#  endif
 #endif
 
   int errors = 0;
