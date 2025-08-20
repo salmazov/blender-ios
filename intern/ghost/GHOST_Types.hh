@@ -326,6 +326,12 @@ enum GHOST_TEventType {
    * \note #GHOST_GetEventData returns #GHOST_TEventTrackpadData.
    */
   GHOST_kEventTrackpad,
+  /**
+   * Touch event.
+   *
+   * \note #GHOST_GetEventData returns #GHOST_TEventTouchData.
+   */
+  GHOST_kEventTouch,
 
   /** Multi touch event. */
   GHOST_kEventTwoFingerTap,
@@ -685,6 +691,26 @@ struct GHOST_TEventTrackpadData {
 };
 
 enum GHOST_TDragnDropTypes {
+typedef enum {
+  GHOST_kTouchEventUnknown = 0,
+  GHOST_kTouchEventEdgeSwipeInLeft,
+  GHOST_kTouchEventEdgeSwipeOutLeft,
+  GHOST_kTouchEventEdgeSwipeInRight,
+  GHOST_kTouchEventEdgeSwipeOutRight,
+} GHOST_TTouchEventSubTypes;
+
+typedef struct {
+  /** The event subtype */
+  GHOST_TTouchEventSubTypes subtype;
+  /** The x-location of the touch event */
+  int32_t x;
+  /** The y-location of the touch event */
+  int32_t y;
+  /** Number of fingers triggering touch or touch event. */
+  uint numFingers;
+} GHOST_TEventTouchData;
+
+typedef enum {
   GHOST_kDragnDropTypeUnknown = 0,
   GHOST_kDragnDropTypeFilenames, /* Array of strings representing file names (full path). */
   GHOST_kDragnDropTypeString,    /* Unformatted text UTF8 string. */

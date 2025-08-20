@@ -37,6 +37,7 @@ _modules = [
     "screen_play_rendered_anim",
     "sequencer",
     "spreadsheet",
+    "touch",
     "userpref",
     "uvcalc_follow_active",
     "uvcalc_lightmap",
