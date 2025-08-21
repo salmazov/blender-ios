@@ -179,9 +179,6 @@ class TOPBAR_MT_file(Menu):
         sub.operator("wm.save_mainfile", text="Save", icon='FILE_TICK').show_save_modified_images_dialog = True
 
         layout.operator_context = 'INVOKE_AREA'
-        layout.operator("wm.save_as_mainfile", text="Save", icon='FILE_TICK').show_save_modified_images_dialog = True
-
-        layout.operator_context = 'INVOKE_AREA'
         layout.operator("wm.save_as_mainfile", text="Save As...").show_save_modified_images_dialog = True
         layout.operator_context = 'INVOKE_AREA'
         save_copy = layout.operator("wm.save_as_mainfile", text="Save Copy...")
