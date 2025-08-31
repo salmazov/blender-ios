@@ -53,6 +53,7 @@ class GHOST_ContextIOS : public GHOST_Context {
    * Constructor.
    */
   GHOST_ContextIOS(UIView *uiView, MTKView *metalView);
+  GHOST_ContextIOS(const GHOST_ContextParams &context_params, UIView *uiView, MTKView *metalView);
 
   /**
    * Destructor.

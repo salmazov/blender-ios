@@ -34,6 +34,13 @@ static const MTLPixelFormat METAL_FRAMEBUFFERPIXEL_FORMAT_EDR = MTLPixelFormatRG
 
 GHOST_ContextIOS::GHOST_ContextIOS(UIView *uiView, MTKView *metalView)
     : GHOST_Context(false), m_uiView(uiView), m_metalView(metalView), m_metalRenderPipeline(nil)
+GHOST_ContextIOS::GHOST_ContextIOS(const GHOST_ContextParams &context_params,
+                                   UIView *uiView,
+                                   MTKView *metalView)
+    : GHOST_Context(context_params),
+      ui_view_(uiView),
+      metal_view_(metalView),
+      metal_render_pipeline_(nil)
 {
   /* Init swapchain */
   current_swapchain_index = 0;

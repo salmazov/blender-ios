@@ -1418,6 +1418,9 @@ GHOST_WindowIOS::GHOST_WindowIOS(GHOST_SystemIOS *systemIos,
       retain];
   [m_uiview_controller viewDidLoad];
   GHOST_ASSERT(m_uiview_controller, "UIViewController not valid");
+  uiview_controller_ = [[[GHOST_IOSViewController alloc] initWithMetalKitView:metal_view_] retain];
+  [uiview_controller_ viewDidLoad];
+  GHOST_ASSERT(uiview_controller_, "UIViewController not valid");
 
   /* Set presentation style depending on whether main window, dialog or temporary window. */
   if (m_fullScreen) {
