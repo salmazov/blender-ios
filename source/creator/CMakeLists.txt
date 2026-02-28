@@ -447,6 +447,14 @@ for subdir in fonts icons colormanagement studiolights; do
   fi
 done
 
+# ── Assets: bundled brushes, nodes, catalog ─────────────────────────
+if [ -d \"\$SRC_DIR/assets\" ] && [ ! -d \"\$DEST/datafiles/assets/brushes\" ]; then
+  echo \"Copying brush and node assets...\"
+  mkdir -p \"\$DEST/datafiles/assets\"
+  rsync -a --exclude='.git' --exclude='LICENSE' \\
+    \"\$SRC_DIR/assets/\" \"\$DEST/datafiles/assets/\"
+fi
+
 # ── Patch OCIO config for iOS (bundled library is v2.4, config is v2.5) ──
 OCIO_CFG=\"\$DEST/datafiles/colormanagement/config.ocio\"
 if [ -f \"\$OCIO_CFG\" ]; then
