@@ -804,6 +804,28 @@ if(WITH_APPLE_CROSSPLATFORM)
     set(CMAKE_XCODE_ATTRIBUTE_SUPPORTS_MACCATALYST NO)
     set(CMAKE_XCODE_ATTRIBUTE_SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD NO)
 
+    # Code signing for iOS device deployment.
+    # Override BLENDER_DEVELOPMENT_TEAM via -DBLENDER_DEVELOPMENT_TEAM=... if needed.
+    if(NOT DEFINED BLENDER_DEVELOPMENT_TEAM)
+      # Auto-detect from first available codesigning identity.
+      execute_process(
+        COMMAND bash -c "security find-certificate -c 'Apple Development' -p 2>/dev/null | openssl x509 -noout -subject 2>/dev/null | sed -n 's/.*OU=\\([A-Z0-9]*\\).*/\\1/p'"
+        OUTPUT_VARIABLE _detected_team
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+      )
+      if(_detected_team)
+        set(BLENDER_DEVELOPMENT_TEAM "${_detected_team}")
+        message(STATUS "Auto-detected development team: ${BLENDER_DEVELOPMENT_TEAM}")
+      endif()
+      unset(_detected_team)
+    endif()
+
+    if(BLENDER_DEVELOPMENT_TEAM)
+      set(CMAKE_XCODE_ATTRIBUTE_DEVELOPMENT_TEAM "${BLENDER_DEVELOPMENT_TEAM}")
+      set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGN_STYLE "Automatic")
+      set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "Apple Development")
+    endif()
+
     # Entitlements file reference
     # `release/ios` is hardcoded since we want to use the same entitlements for both iOS-Simulator and normal iOS builds.
     set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGN_ENTITLEMENTS "${CMAKE_SOURCE_DIR}/release/ios/entitlements.plist")
