@@ -4393,6 +4393,32 @@ void wm_event_do_handlers(bContext *C)
           }
         }
 
+#ifdef WITH_APPLE_CROSSPLATFORM
+        /* iOS Floating Overlay: click outside the floating panel dismisses it. */
+        if ((action & WM_HANDLER_BREAK) == 0 && (screen->flag & SCREEN_FLOATING_OVERLAY) &&
+            ISMOUSE_BUTTON(event->type) && event->val == KM_PRESS)
+        {
+          /* Check if the click is outside ALL non-global areas (i.e., on the dimmed background). */
+          bool inside_any_area = false;
+          ED_screen_areas_iter (&win, screen, area) {
+            if (wm_event_inside_rect(event, &area->totrct)) {
+              inside_any_area = true;
+              break;
+            }
+          }
+          if (!inside_any_area) {
+            /* Find the fullscreen area and trigger "Back to Previous". */
+            for (ScrArea &area_iter : screen->areabase) {
+              if (area_iter.full) {
+                ED_screen_full_prevspace(C, &area_iter);
+                action |= WM_HANDLER_BREAK;
+                break;
+              }
+            }
+          }
+        }
+#endif
+
         if ((action & WM_HANDLER_BREAK) == 0) {
           /* Also some non-modal handlers need active area/region. */
           CTX_wm_area_set(C, area_event_inside(C, event->xy));

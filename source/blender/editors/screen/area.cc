@@ -1999,6 +1999,20 @@ static void area_calc_totrct(const bScreen *screen, ScrArea *area, const rcti *w
   BLI_assert(area->totrct.ymax >= 0);
 #endif
 
+#ifdef WITH_APPLE_CROSSPLATFORM
+  /* iOS Floating Overlay: inset the area to create a centered floating panel. */
+  if (screen->flag & SCREEN_FLOATING_OVERLAY) {
+    const int win_w = BLI_rcti_size_x(window_rect);
+    const int win_h = BLI_rcti_size_y(window_rect);
+    const int margin_x = int(win_w * 0.04f);
+    const int margin_y = int(win_h * 0.04f);
+    area->totrct.xmin = window_rect->xmin + margin_x;
+    area->totrct.xmax = window_rect->xmax - margin_x;
+    area->totrct.ymin = window_rect->ymin + margin_y;
+    area->totrct.ymax = window_rect->ymax - margin_y;
+  }
+#endif
+
   /* for speedup */
   area->winx = BLI_rcti_size_x(&area->totrct) + 1;
   area->winy = BLI_rcti_size_y(&area->totrct) + 1;

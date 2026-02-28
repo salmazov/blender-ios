@@ -1929,6 +1929,11 @@ ScrArea *ED_screen_temp_space_open(
       /* Create a new fullscreen area. */
       ScrArea *area = ED_screen_full_newspace(C, ctx_area, int(space_type));
       (static_cast<SpaceLink *>(area->spacedata.first))->link_flag |= SPACE_FLAG_TYPE_TEMPORARY;
+#ifdef WITH_APPLE_CROSSPLATFORM
+      /* Mark the new screen as a floating overlay so it draws as a centered panel
+       * with dimmed background instead of taking over the entire window. */
+      CTX_wm_screen(C)->flag |= SCREEN_FLOATING_OVERLAY;
+#endif
       return area;
     }
   }
