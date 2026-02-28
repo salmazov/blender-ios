@@ -419,13 +419,27 @@ DEST=\"\$BUNDLE_ASSETS/\$BLENDER_VERSION\"
 
 mkdir -p \"\$DEST/datafiles\"
 
-# Scripts
+# ── Scripts ──────────────────────────────────────────────────────────
 if [ ! -d \"\$DEST/scripts/startup\" ]; then
   echo \"Copying Blender scripts...\"
-  rsync -a --exclude='.git' --exclude='__pycache__' --exclude='.gitignore' --exclude='site' \"\$SRC_DIR/scripts/\" \"\$DEST/scripts/\"
+  rsync -a --exclude='.git' --exclude='__pycache__' --exclude='.gitignore' \\
+    --exclude='site' \"\$SRC_DIR/scripts/\" \"\$DEST/scripts/\"
 fi
 
-# Datafiles: fonts, icons, colormanagement, studiolights
+# ── Cycles addon (lives outside scripts/, installed via delayed_install) ──
+if [ ! -d \"\$DEST/scripts/addons_core/cycles\" ]; then
+  echo \"Copying Cycles addon...\"
+  mkdir -p \"\$DEST/scripts/addons_core/cycles\"
+  cp -f \"\$SRC_DIR/intern/cycles/blender/addon/\"*.py \"\$DEST/scripts/addons_core/cycles/\"
+fi
+
+# ── Remove addons that require Python >= 3.12 (type alias syntax) ──
+if [ -d \"\$DEST/scripts/addons_core/bl_pkg\" ]; then
+  echo \"Removing bl_pkg addon (requires Python 3.12+)...\"
+  rm -rf \"\$DEST/scripts/addons_core/bl_pkg\"
+fi
+
+# ── Datafiles: fonts, icons, colormanagement, studiolights ──────────
 for subdir in fonts icons colormanagement studiolights; do
   if [ -d \"\$SRC_DIR/release/datafiles/\$subdir\" ] && [ ! -d \"\$DEST/datafiles/\$subdir\" ]; then
     echo \"Copying datafiles/\$subdir...\"
@@ -433,16 +447,27 @@ for subdir in fonts icons colormanagement studiolights; do
   fi
 done
 
-# Locale: compiled .mo files from build directory
+# ── Patch OCIO config for iOS (bundled library is v2.4, config is v2.5) ──
+OCIO_CFG=\"\$DEST/datafiles/colormanagement/config.ocio\"
+if [ -f \"\$OCIO_CFG\" ]; then
+  if grep -q 'ocio_profile_version: 2.5' \"\$OCIO_CFG\"; then
+    echo \"Patching OCIO config for v2.4 compatibility...\"
+    sed -i '' \\
+      -e 's/ocio_profile_version: 2.5/ocio_profile_version: 2.4/' \\
+      -e '/^[[:space:]]*interop_id:/d' \\
+      -e '/^[[:space:]]*icc_profile_name:/d' \\
+      \"\$OCIO_CFG\"
+  fi
+fi
+
+# ── Locale: compiled .mo files from build directory ─────────────────
 if [ ! -d \"\$DEST/datafiles/locale\" ]; then
   echo \"Copying locale files...\"
   LOCALE_DEST=\"\$DEST/datafiles/locale\"
   mkdir -p \"\$LOCALE_DEST\"
-  # Copy languages list
   if [ -f \"\$SRC_DIR/locale/languages\" ]; then
     cp -f \"\$SRC_DIR/locale/languages\" \"\$LOCALE_DEST/\"
   fi
-  # Copy compiled .mo files into locale/<lang>/LC_MESSAGES/blender.mo
   for mo in \"\$BUILD_DIR\"/source/creator/*.mo; do
     [ -f \"\$mo\" ] || continue
     LANG_NAME=\$(basename \"\$mo\" .mo)
@@ -451,15 +476,28 @@ if [ ! -d \"\$DEST/datafiles/locale\" ]; then
   done
 fi
 
-# Python runtime
+# ── Python runtime ──────────────────────────────────────────────────
 if [ ! -d \"\$DEST/python/lib/python\$PYTHON_VERSION\" ]; then
   echo \"Copying Python runtime...\"
   mkdir -p \"\$DEST/python/lib\"
-  rsync -a --exclude='__pycache__' --exclude='test' --exclude='tests' --exclude='tkinter' --exclude='idlelib' --exclude='turtle*' --exclude='ensurepip' \"\$LIBDIR/python/lib/python\$PYTHON_VERSION/\" \"\$DEST/python/lib/python\$PYTHON_VERSION/\"
-  # Copy Python binary
+  rsync -a --exclude='__pycache__' --exclude='test' --exclude='tests' \\
+    --exclude='tkinter' --exclude='idlelib' --exclude='turtle*' \\
+    --exclude='ensurepip' \\
+    --exclude='*.so' --exclude='*.dylib' \\
+    \"\$LIBDIR/python/lib/python\$PYTHON_VERSION/\" \\
+    \"\$DEST/python/lib/python\$PYTHON_VERSION/\"
   if [ -f \"\$LIBDIR/python/bin/python\$PYTHON_VERSION\" ]; then
     mkdir -p \"\$DEST/python/bin\"
     cp -f \"\$LIBDIR/python/bin/python\$PYTHON_VERSION\" \"\$DEST/python/bin/\"
+  fi
+fi
+
+# ── Clean macOS native extensions from site-packages (wrong platform) ──
+if [ -d \"\$DEST/python/lib/python\$PYTHON_VERSION/site-packages\" ]; then
+  REMOVED=\$(find \"\$DEST/python/lib/python\$PYTHON_VERSION/site-packages\" \\
+    \\( -name '*.so' -o -name '*.dylib' \\) -delete -print 2>/dev/null | wc -l)
+  if [ \"\$REMOVED\" -gt 0 ]; then
+    echo \"Removed \$REMOVED macOS native extensions from site-packages.\"
   fi
 fi
 
