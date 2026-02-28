@@ -1198,10 +1198,10 @@ static void wm_draw_window_onscreen(bContext *C, wmWindow *win, int view)
   ui::theme::theme_set(0, 0);
 
 #ifdef WITH_APPLE_CROSSPLATFORM
-  /* iOS Floating Overlay: draw a visible border around the floating panel. */
+  /* iOS Floating Overlay: draw border and close button for the floating panel. */
   if (screen->flag & SCREEN_FLOATING_OVERLAY) {
     ED_screen_areas_iter (win, screen, area) {
-      /* Only draw border for non-global (main) areas. */
+      /* Only draw for non-global (main) areas. */
       if (!ED_area_is_global(area)) {
         const float border_width = 1.0f * UI_SCALE_FAC;
         const rctf panel_rect = {float(area->totrct.xmin) - border_width,
@@ -1210,9 +1210,41 @@ static void wm_draw_window_onscreen(bContext *C, wmWindow *win, int view)
                                  float(area->totrct.ymax) + border_width};
 
         GPU_blend(GPU_BLEND_ALPHA);
+
+        /* Panel outline. */
         const float outline_color[4] = {0.3f, 0.3f, 0.3f, 0.8f};
         ui::draw_roundbox_corner_set(ui::CNR_ALL);
         ui::draw_roundbox_4fv(&panel_rect, false, 8.0f * UI_SCALE_FAC, outline_color);
+
+        /* Close button: circle with X in the top-right corner, outside the panel. */
+        const float btn_radius = 14.0f * UI_SCALE_FAC;
+        const float btn_cx = panel_rect.xmax + btn_radius * 0.1f;
+        const float btn_cy = panel_rect.ymax + btn_radius * 0.1f;
+
+        /* Filled dark circle background. */
+        const uint pos = GPU_vertformat_attr_add(
+            immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
+        immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+        immUniformColor4f(0.15f, 0.15f, 0.15f, 0.9f);
+        imm_draw_circle_fill_2d(pos, btn_cx, btn_cy, btn_radius, 24);
+
+        /* Circle outline. */
+        immUniformColor4f(0.5f, 0.5f, 0.5f, 0.9f);
+        imm_draw_circle_wire_2d(pos, btn_cx, btn_cy, btn_radius, 24);
+
+        /* Draw X mark. */
+        const float x_half = btn_radius * 0.4f;
+        immUniformColor4f(0.85f, 0.85f, 0.85f, 1.0f);
+        GPU_line_width(2.0f * UI_SCALE_FAC);
+        immBegin(GPU_PRIM_LINES, 4);
+        immVertex2f(pos, btn_cx - x_half, btn_cy - x_half);
+        immVertex2f(pos, btn_cx + x_half, btn_cy + x_half);
+        immVertex2f(pos, btn_cx - x_half, btn_cy + x_half);
+        immVertex2f(pos, btn_cx + x_half, btn_cy - x_half);
+        immEnd();
+        GPU_line_width(1.0f);
+
+        immUnbindProgram();
         GPU_blend(GPU_BLEND_NONE);
         break; /* Only one main area in maximized screen. */
       }

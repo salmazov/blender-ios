@@ -143,9 +143,14 @@ ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports)
 
   int render_display_type = U.render_display_type;
 #ifdef WITH_APPLE_CROSSPLATFORM
-  /* iOS: new windows have no close controls, force render into current area. */
-  if (render_display_type == USER_RENDER_DISPLAY_WINDOW) {
-    render_display_type = USER_RENDER_DISPLAY_AREA;
+  /* iOS: new windows have no close controls, force fullscreen overlay.
+   * Both WINDOW and AREA modes are problematic — WINDOW can't be closed,
+   * AREA replaces the layout with no way back. Use SCREEN which goes through
+   * ED_screen_full_newspace and gets SCREEN_FLOATING_OVERLAY treatment. */
+  if (render_display_type == USER_RENDER_DISPLAY_WINDOW ||
+      render_display_type == USER_RENDER_DISPLAY_AREA)
+  {
+    render_display_type = USER_RENDER_DISPLAY_SCREEN;
   }
 #endif
 
@@ -214,6 +219,11 @@ ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports)
 
       /* this function returns with changed context */
       area = ED_screen_full_newspace(C, area, SPACE_IMAGE);
+#ifdef WITH_APPLE_CROSSPLATFORM
+      /* Mark as floating overlay so it draws with dimmed background,
+       * rounded border, and a close button. */
+      CTX_wm_screen(C)->flag |= SCREEN_FLOATING_OVERLAY;
+#endif
     }
   }
 

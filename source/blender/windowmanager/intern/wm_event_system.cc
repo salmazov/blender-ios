@@ -4394,19 +4394,46 @@ void wm_event_do_handlers(bContext *C)
         }
 
 #ifdef WITH_APPLE_CROSSPLATFORM
-        /* iOS Floating Overlay: click outside the floating panel dismisses it. */
+        /* iOS Floating Overlay: click outside the floating panel or on the
+         * close button dismisses it. */
         if ((action & WM_HANDLER_BREAK) == 0 && (screen->flag & SCREEN_FLOATING_OVERLAY) &&
             ISMOUSE_BUTTON(event->type) && event->val == KM_PRESS)
         {
-          /* Check if the click is outside ALL non-global areas (i.e., on the dimmed background). */
-          bool inside_any_area = false;
+          bool should_close = false;
+
+          /* Check if click hit the close button (top-right corner of panel). */
           ED_screen_areas_iter (&win, screen, area) {
-            if (wm_event_inside_rect(event, &area->totrct)) {
-              inside_any_area = true;
+            if (!ED_area_is_global(area)) {
+              const float btn_radius = 14.0f * UI_SCALE_FAC;
+              const float btn_cx = float(area->totrct.xmax) + (1.0f * UI_SCALE_FAC) +
+                                   btn_radius * 0.1f;
+              const float btn_cy = float(area->totrct.ymax) + (1.0f * UI_SCALE_FAC) +
+                                   btn_radius * 0.1f;
+              const float dx = float(event->xy[0]) - btn_cx;
+              const float dy = float(event->xy[1]) - btn_cy;
+              /* Use a slightly larger hit area for easier touch targeting. */
+              if ((dx * dx + dy * dy) <= (btn_radius * 1.5f) * (btn_radius * 1.5f)) {
+                should_close = true;
+              }
               break;
             }
           }
-          if (!inside_any_area) {
+
+          /* Also close when clicking outside all areas (on the dimmed background). */
+          if (!should_close) {
+            bool inside_any_area = false;
+            ED_screen_areas_iter (&win, screen, area) {
+              if (wm_event_inside_rect(event, &area->totrct)) {
+                inside_any_area = true;
+                break;
+              }
+            }
+            if (!inside_any_area) {
+              should_close = true;
+            }
+          }
+
+          if (should_close) {
             /* Find the fullscreen area and trigger "Back to Previous". */
             for (ScrArea &area_iter : screen->areabase) {
               if (area_iter.full) {
