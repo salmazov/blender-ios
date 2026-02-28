@@ -401,6 +401,78 @@ done
       unset(_sign_script)
     endif()
 
+    # Copy Blender data files (scripts, datafiles, Python) into the build output
+    # app bundle. This reuses the cmake install step but targets the build output
+    # directory so Xcode can deploy directly to device.
+    set(_ios_bundle_assets "$<TARGET_BUNDLE_DIR:blender>/Assets")
+    set(_ios_data_script "${CMAKE_CURRENT_BINARY_DIR}/copy_bundle_data.sh")
+    file(WRITE "${_ios_data_script}"
+"#!/bin/bash
+set -e
+BUNDLE_ASSETS=\"\$1\"
+SRC_DIR=\"${CMAKE_SOURCE_DIR}\"
+BUILD_DIR=\"${CMAKE_BINARY_DIR}\"
+LIBDIR=\"${LIBDIR}\"
+BLENDER_VERSION=\"${BLENDER_VERSION}\"
+PYTHON_VERSION=\"${PYTHON_VERSION}\"
+DEST=\"\$BUNDLE_ASSETS/\$BLENDER_VERSION\"
+
+mkdir -p \"\$DEST/datafiles\"
+
+# Scripts
+if [ ! -d \"\$DEST/scripts/startup\" ]; then
+  echo \"Copying Blender scripts...\"
+  rsync -a --exclude='.git' --exclude='__pycache__' --exclude='.gitignore' --exclude='site' \"\$SRC_DIR/scripts/\" \"\$DEST/scripts/\"
+fi
+
+# Datafiles: fonts, icons, colormanagement, studiolights
+for subdir in fonts icons colormanagement studiolights; do
+  if [ -d \"\$SRC_DIR/release/datafiles/\$subdir\" ] && [ ! -d \"\$DEST/datafiles/\$subdir\" ]; then
+    echo \"Copying datafiles/\$subdir...\"
+    rsync -a \"\$SRC_DIR/release/datafiles/\$subdir/\" \"\$DEST/datafiles/\$subdir/\"
+  fi
+done
+
+# Locale: compiled .mo files from build directory
+if [ ! -d \"\$DEST/datafiles/locale\" ]; then
+  echo \"Copying locale files...\"
+  LOCALE_DEST=\"\$DEST/datafiles/locale\"
+  mkdir -p \"\$LOCALE_DEST\"
+  # Copy languages list
+  if [ -f \"\$SRC_DIR/locale/languages\" ]; then
+    cp -f \"\$SRC_DIR/locale/languages\" \"\$LOCALE_DEST/\"
+  fi
+  # Copy compiled .mo files into locale/<lang>/LC_MESSAGES/blender.mo
+  for mo in \"\$BUILD_DIR\"/source/creator/*.mo; do
+    [ -f \"\$mo\" ] || continue
+    LANG_NAME=\$(basename \"\$mo\" .mo)
+    mkdir -p \"\$LOCALE_DEST/\$LANG_NAME/LC_MESSAGES\"
+    cp -f \"\$mo\" \"\$LOCALE_DEST/\$LANG_NAME/LC_MESSAGES/blender.mo\"
+  done
+fi
+
+# Python runtime
+if [ ! -d \"\$DEST/python/lib/python\$PYTHON_VERSION\" ]; then
+  echo \"Copying Python runtime...\"
+  mkdir -p \"\$DEST/python/lib\"
+  rsync -a --exclude='__pycache__' --exclude='test' --exclude='tests' --exclude='tkinter' --exclude='idlelib' --exclude='turtle*' --exclude='ensurepip' \"\$LIBDIR/python/lib/python\$PYTHON_VERSION/\" \"\$DEST/python/lib/python\$PYTHON_VERSION/\"
+  # Copy Python binary
+  if [ -f \"\$LIBDIR/python/bin/python\$PYTHON_VERSION\" ]; then
+    mkdir -p \"\$DEST/python/bin\"
+    cp -f \"\$LIBDIR/python/bin/python\$PYTHON_VERSION\" \"\$DEST/python/bin/\"
+  fi
+fi
+
+echo \"Bundle data files ready.\"
+")
+
+    add_custom_command(TARGET blender POST_BUILD
+      COMMAND bash "${_ios_data_script}" "${_ios_bundle_assets}"
+      COMMENT "Copying Blender data files into app bundle..."
+    )
+    unset(_ios_bundle_assets)
+    unset(_ios_data_script)
+
   else()
     add_executable(blender ${EXETYPE} ${SRC})
     if(WITH_CPU_CHECK)
