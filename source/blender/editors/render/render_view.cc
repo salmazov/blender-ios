@@ -141,7 +141,15 @@ ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports)
     return nullptr;
   }
 
-  if (U.render_display_type == USER_RENDER_DISPLAY_WINDOW) {
+  int render_display_type = U.render_display_type;
+#ifdef WITH_APPLE_CROSSPLATFORM
+  /* iOS: new windows have no close controls, force render into current area. */
+  if (render_display_type == USER_RENDER_DISPLAY_WINDOW) {
+    render_display_type = USER_RENDER_DISPLAY_AREA;
+  }
+#endif
+
+  if (render_display_type == USER_RENDER_DISPLAY_WINDOW) {
     int sizex, sizey;
     BKE_render_resolution(&scene->r, false, &sizex, &sizey);
 
@@ -191,7 +199,7 @@ ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports)
       sima->flag |= SI_PREVSPACE;
     }
   }
-  else if (U.render_display_type == USER_RENDER_DISPLAY_SCREEN) {
+  else if (render_display_type == USER_RENDER_DISPLAY_SCREEN) {
     area = CTX_wm_area(C);
 
     /* If the active screen is already in full-screen mode, skip this and

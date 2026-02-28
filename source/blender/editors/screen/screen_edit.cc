@@ -1888,6 +1888,13 @@ ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *area, const
 ScrArea *ED_screen_temp_space_open(
     bContext *C, const char *title, eSpace_Type space_type, int display_type, bool dialog)
 {
+#ifdef WITH_APPLE_CROSSPLATFORM
+  /* iOS has no window controls (close/minimize/resize), so opening a new OS window
+   * for temp spaces like Preferences makes them impossible to close. Force fullscreen
+   * overlay mode which has a built-in "Back to Previous" button. */
+  display_type = USER_TEMP_SPACE_DISPLAY_FULLSCREEN;
+#endif
+
   switch (display_type) {
     case USER_TEMP_SPACE_DISPLAY_WINDOW:
       if (WM_window_open_temp(C, title, space_type, dialog)) {

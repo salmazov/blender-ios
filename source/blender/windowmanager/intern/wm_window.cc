@@ -1437,6 +1437,19 @@ wmWindow *WM_window_open(bContext *C,
 
 wmWindow *WM_window_open_temp(bContext *C, const char *title, int space_type, bool dialog)
 {
+#ifdef WITH_APPLE_CROSSPLATFORM
+  /* iOS has no window controls (close/minimize/resize), so opening a new OS window
+   * creates an unclosable fullscreen surface. Use fullscreen overlay instead,
+   * which provides a built-in "Back to Previous" button. */
+  ScrArea *area = ED_screen_temp_space_open(
+      C, title, eSpace_Type(space_type), USER_TEMP_SPACE_DISPLAY_FULLSCREEN, dialog);
+  if (area) {
+    /* Return the current window so callers see success. Context has been updated. */
+    return CTX_wm_window(C);
+  }
+  return nullptr;
+#endif
+
   rcti rect;
   WM_window_dpi_set_userdef(CTX_wm_window(C));
   eWindowAlignment align;
@@ -1488,6 +1501,11 @@ wmOperatorStatus wm_window_close_exec(bContext *C, wmOperator * /*op*/)
 
 wmOperatorStatus wm_window_new_exec(bContext *C, wmOperator *op)
 {
+#ifdef WITH_APPLE_CROSSPLATFORM
+  BKE_report(op->reports, RPT_WARNING, "Multiple windows are not supported on this platform");
+  return OPERATOR_CANCELLED;
+#endif
+
   wmWindow *win_src = CTX_wm_window(C);
   ScrArea *area = BKE_screen_find_big_area(CTX_wm_screen(C), SPACE_TYPE_ANY, 0);
   const rcti window_rect = {
@@ -1517,6 +1535,11 @@ wmOperatorStatus wm_window_new_exec(bContext *C, wmOperator *op)
 
 wmOperatorStatus wm_window_new_main_exec(bContext *C, wmOperator *op)
 {
+#ifdef WITH_APPLE_CROSSPLATFORM
+  BKE_report(op->reports, RPT_WARNING, "Multiple windows are not supported on this platform");
+  return OPERATOR_CANCELLED;
+#endif
+
   wmWindow *win_src = CTX_wm_window(C);
 
   bool ok = (wm_window_copy_test(C, win_src, true, false) != nullptr);
