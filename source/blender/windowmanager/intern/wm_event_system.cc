@@ -4405,10 +4405,10 @@ void wm_event_do_handlers(bContext *C)
           ED_screen_areas_iter (&win, screen, area) {
             if (!ED_area_is_global(area)) {
               const float btn_radius = 14.0f * UI_SCALE_FAC;
-              const float btn_cx = float(area->totrct.xmax) + (1.0f * UI_SCALE_FAC) +
-                                   btn_radius * 0.1f;
-              const float btn_cy = float(area->totrct.ymax) + (1.0f * UI_SCALE_FAC) +
-                                   btn_radius * 0.1f;
+              const float border_width = 1.0f * UI_SCALE_FAC;
+              const float btn_margin = btn_radius + 6.0f * UI_SCALE_FAC;
+              const float btn_cx = float(area->totrct.xmax) + border_width - btn_margin;
+              const float btn_cy = float(area->totrct.ymax) + border_width - btn_margin;
               const float dx = float(event->xy[0]) - btn_cx;
               const float dy = float(event->xy[1]) - btn_cy;
               /* Use a slightly larger hit area for easier touch targeting. */

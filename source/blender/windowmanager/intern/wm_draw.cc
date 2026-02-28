@@ -1216,10 +1216,11 @@ static void wm_draw_window_onscreen(bContext *C, wmWindow *win, int view)
         ui::draw_roundbox_corner_set(ui::CNR_ALL);
         ui::draw_roundbox_4fv(&panel_rect, false, 8.0f * UI_SCALE_FAC, outline_color);
 
-        /* Close button: circle with X in the top-right corner, outside the panel. */
+        /* Close button: circle with X inside the top-right corner of the panel. */
         const float btn_radius = 14.0f * UI_SCALE_FAC;
-        const float btn_cx = panel_rect.xmax + btn_radius * 0.1f;
-        const float btn_cy = panel_rect.ymax + btn_radius * 0.1f;
+        const float btn_margin = btn_radius + 6.0f * UI_SCALE_FAC;
+        const float btn_cx = panel_rect.xmax - btn_margin;
+        const float btn_cy = panel_rect.ymax - btn_margin;
 
         /* Filled dark circle background. */
         const uint pos = GPU_vertformat_attr_add(
