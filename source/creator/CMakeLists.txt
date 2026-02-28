@@ -365,7 +365,24 @@ else()
       ${LIBDIR}/bzip2/lib/libbz2.a
     )
     list(APPEND LIB ${IOS_PYTHON_STATIC_LIBS})
-    
+
+    # Copy bundled dynamic libraries into the build output app bundle so that
+    # Xcode can deploy directly to device without running cmake --install.
+    # The install rpath @loader_path/Assets/lib expects them there.
+    if(PLATFORM_BUNDLED_LIBRARIES)
+      set(_ios_lib_dest "$<TARGET_BUNDLE_DIR:blender>/Assets/lib")
+      add_custom_command(TARGET blender POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${_ios_lib_dest}"
+        COMMENT "Copying bundled libraries into app bundle..."
+      )
+      foreach(_lib ${PLATFORM_BUNDLED_LIBRARIES})
+        add_custom_command(TARGET blender POST_BUILD
+          COMMAND ${CMAKE_COMMAND} -E copy_if_different "${_lib}" "${_ios_lib_dest}/"
+        )
+      endforeach()
+      unset(_ios_lib_dest)
+    endif()
+
   else()
     add_executable(blender ${EXETYPE} ${SRC})
     if(WITH_CPU_CHECK)
