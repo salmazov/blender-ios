@@ -13,6 +13,8 @@
 #include "GHOST_EventCursor.hh"
 #include "GHOST_EventDragnDrop.hh"
 #include "GHOST_EventKey.hh"
+
+#include <memory>
 #include "GHOST_EventTouch.hh"
 #include "GHOST_EventTrackpad.hh"
 
@@ -459,7 +461,7 @@ typedef struct UserInputEvent {
       switch (event_type) {
         case UserInputEvent::EventTypes::CURSOR_MOVE:
           system->pushEvent(
-              new GHOST_EventCursor(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
+              std::make_unique<GHOST_EventCursor>(system->getMilliSeconds(),
                                     GHOST_kEventCursorMove,
                                     window,
                                     event_info.location.x,
@@ -468,7 +470,7 @@ typedef struct UserInputEvent {
           break;
         case UserInputEvent::EventTypes::PAN_GESTURE:
           system->pushEvent(
-              new GHOST_EventTrackpad(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
+              std::make_unique<GHOST_EventTrackpad>(system->getMilliSeconds(),
                                       window,
                                       GHOST_kTrackpadEventScroll,
                                       event_info.location.x,
@@ -480,7 +482,7 @@ typedef struct UserInputEvent {
           break;
         case UserInputEvent::EventTypes::PAN_GESTURE_TWO_FINGERS:
           system->pushEvent(
-              new GHOST_EventTrackpad(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
+              std::make_unique<GHOST_EventTrackpad>(system->getMilliSeconds(),
                                       window,
                                       GHOST_kTrackpadEventScroll,
                                       event_info.location.x,
@@ -492,7 +494,7 @@ typedef struct UserInputEvent {
           break;
         case UserInputEvent::EventTypes::LEFT_BUTTON_DOWN:
           system->pushEvent(
-              new GHOST_EventButton(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
+              std::make_unique<GHOST_EventButton>(system->getMilliSeconds(),
                                     GHOST_kEventButtonDown,
                                     window,
                                     GHOST_kButtonMaskLeft,
@@ -500,7 +502,7 @@ typedef struct UserInputEvent {
           break;
         case UserInputEvent::EventTypes::LEFT_BUTTON_UP:
           system->pushEvent(
-              new GHOST_EventButton(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
+              std::make_unique<GHOST_EventButton>(system->getMilliSeconds(),
                                     GHOST_kEventButtonUp,
                                     window,
                                     GHOST_kButtonMaskLeft,
@@ -508,7 +510,7 @@ typedef struct UserInputEvent {
           break;
         case UserInputEvent::EventTypes::PINCH_GESTURE:
           system->pushEvent(
-              new GHOST_EventTrackpad(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
+              std::make_unique<GHOST_EventTrackpad>(system->getMilliSeconds(),
                                       window,
                                       GHOST_kTrackpadEventMagnify,
                                       event_info.location.x,
@@ -521,7 +523,7 @@ typedef struct UserInputEvent {
         case UserInputEvent::EventTypes::PENCIL_TAP:
           /* Simulate clicking with the right mouse button. */
           system->pushEvent(
-              new GHOST_EventButton(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
+              std::make_unique<GHOST_EventButton>(system->getMilliSeconds(),
                                     GHOST_kEventButtonDown,
                                     window,
                                     GHOST_kButtonMaskRight,
@@ -643,8 +645,8 @@ typedef struct UserInputEvent {
   touch_point.x *= scale;
   touch_point.y *= scale;
 
-  system->pushEvent(new GHOST_Event(
-      GHOST_GetMilliSeconds((GHOST_SystemHandle)system), GHOST_kEventTwoFingerTap, window));
+  system->pushEvent(std::make_unique<GHOST_Event>(
+      system->getMilliSeconds(), GHOST_kEventTwoFingerTap, window));
 }
 
 - (void)handleTap3F:(GHOSTUITapGestureRecognizer *)sender
@@ -658,8 +660,8 @@ typedef struct UserInputEvent {
   touch_point.x *= scale;
   touch_point.y *= scale;
 
-  system->pushEvent(new GHOST_Event(
-      GHOST_GetMilliSeconds((GHOST_SystemHandle)system), GHOST_kEventThreeFingerTap, window));
+  system->pushEvent(std::make_unique<GHOST_Event>(
+      system->getMilliSeconds(), GHOST_kEventThreeFingerTap, window));
 }
 
 - (void)handleTap4F:(GHOSTUITapGestureRecognizer *)sender
@@ -673,8 +675,8 @@ typedef struct UserInputEvent {
   touch_point.x *= scale;
   touch_point.y *= scale;
 
-  system->pushEvent(new GHOST_Event(
-      GHOST_GetMilliSeconds((GHOST_SystemHandle)system), GHOST_kEventFourFingerTap, window));
+  system->pushEvent(std::make_unique<GHOST_Event>(
+      system->getMilliSeconds(), GHOST_kEventFourFingerTap, window));
 }
 
 - (void)handlePan:(GHOSTUIPanGestureRecognizer *)sender
@@ -777,7 +779,7 @@ typedef struct UserInputEvent {
     return;
   }
 
-  system->pushEvent(new GHOST_EventTouch(
+  system->pushEvent(std::make_unique<GHOST_EventTouch>(
       system->getMilliSeconds(), window, ghostEventType, location.x, location.y));
 }
 
@@ -922,7 +924,7 @@ typedef struct UserInputEvent {
      This event should cause ui_textedit_end() to be called which will
      hide the keyboard.
      */
-    system->pushEvent(new GHOST_EventKey(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
+    system->pushEvent(std::make_unique<GHOST_EventKey>(system->getMilliSeconds(),
                                          GHOST_kEventKeyDown,
                                          window,
                                          GHOST_kKeyEnter,
@@ -962,7 +964,7 @@ typedef struct UserInputEvent {
     bool push_edits_back_to_blender = false;
 
     if (push_edits_back_to_blender) {
-      system->pushEvent(new GHOST_EventKey(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
+      system->pushEvent(std::make_unique<GHOST_EventKey>(system->getMilliSeconds(),
                                            GHOST_kEventKeyDown,
                                            window,
                                            GHOST_kKeyTextEdit,
@@ -1364,13 +1366,13 @@ GHOST_WindowIOS::GHOST_WindowIOS(GHOST_SystemIOS *systemIos,
                                  uint32_t height,
                                  GHOST_TWindowState state,
                                  GHOST_TDrawingContextType type,
-                                 const bool stereoVisual,
+                                 const GHOST_ContextParams &context_params,
                                  bool /*is_debug*/,
                                  bool /*is_dialog*/,
                                  GHOST_WindowIOS *parentWindow)
-    : GHOST_Window(width, height, state, stereoVisual, false), m_metalView(nil)
+    : GHOST_Window(width, height, state, context_params, false), m_metalView(nil)
 {
-  m_fullScreen = false;
+  full_screen_ = false;
   m_systemIOS = systemIos;
   /* Parent window will be the window that focus is returned to upon close. */
   parent_window_ = parentWindow;
@@ -1389,7 +1391,7 @@ GHOST_WindowIOS::GHOST_WindowIOS(GHOST_SystemIOS *systemIos,
 
   GHOSTUIWindow *ghost_rootWindow = nullptr;
 
-  if (m_fullScreen) {
+  if (full_screen_) {
     /* Init window at native res. */
     ghost_rootWindow = [[GHOSTUIWindow alloc] init];
     [ghost_rootWindow retain];
@@ -1415,12 +1417,9 @@ GHOST_WindowIOS::GHOST_WindowIOS(GHOST_SystemIOS *systemIos,
       retain];
   [m_uiview_controller viewDidLoad];
   GHOST_ASSERT(m_uiview_controller, "UIViewController not valid");
-  uiview_controller_ = [[[GHOST_IOSViewController alloc] initWithMetalKitView:metal_view_] retain];
-  [uiview_controller_ viewDidLoad];
-  GHOST_ASSERT(uiview_controller_, "UIViewController not valid");
 
   /* Set presentation style depending on whether main window, dialog or temporary window. */
-  if (m_fullScreen) {
+  if (full_screen_) {
     /* Initial window has no parent and is always fullscreen. */
     m_uiview_controller.modalPresentationStyle = UIModalPresentationFullScreen;
   }
@@ -1533,7 +1532,12 @@ void *GHOST_WindowIOS::getOSWindow() const
   return (void *)m_uiview;
 }
 
-GHOST_TSuccess GHOST_WindowIOS::swapBuffers()
+GHOST_TSuccess GHOST_WindowIOS::swapBufferAcquire()
+{
+  return GHOST_kSuccess;
+}
+
+GHOST_TSuccess GHOST_WindowIOS::swapBufferRelease()
 {
   deferred_swap_buffers_count++;
   return GHOST_kSuccess;
@@ -1562,7 +1566,7 @@ void GHOST_WindowIOS::flushDeferredSwapBuffers()
                    deferred_swap_buffers_count);
 
     GHOST_ContextIOS *context = reinterpret_cast<GHOST_ContextIOS *>(getContext());
-    context->swapBuffers();
+    context->swapBufferRelease();
     deferred_swap_buffers_count = 0;
   }
 }
@@ -1613,10 +1617,10 @@ void GHOST_WindowIOS::getWindowBounds(GHOST_Rect &bounds) const
   CGFloat screenWidth = screenRect.size.width * scale;
   CGFloat screenHeight = screenRect.size.height * scale;
 
-  bounds.m_b = screenHeight;
-  bounds.m_l = rootWindow.frame.origin.x;
-  bounds.m_r = screenWidth;
-  bounds.m_t = rootWindow.frame.origin.y;
+  bounds.b_ = screenHeight;
+  bounds.l_ = rootWindow.frame.origin.x;
+  bounds.r_ = screenWidth;
+  bounds.t_ = rootWindow.frame.origin.y;
 }
 
 void GHOST_WindowIOS::getClientBounds(GHOST_Rect &bounds) const
@@ -1628,10 +1632,10 @@ void GHOST_WindowIOS::getClientBounds(GHOST_Rect &bounds) const
   CGFloat screenWidth = screenRect.size.width * scale;
   CGFloat screenHeight = screenRect.size.height * scale;
 
-  bounds.m_b = screenHeight;
-  bounds.m_l = 0;
-  bounds.m_r = screenWidth;
-  bounds.m_t = 0;
+  bounds.b_ = screenHeight;
+  bounds.l_ = 0;
+  bounds.r_ = screenWidth;
+  bounds.t_ = 0;
 }
 
 GHOST_TSuccess GHOST_WindowIOS::setClientWidth(uint32_t /*width*/)
@@ -1738,7 +1742,7 @@ GHOST_Context *GHOST_WindowIOS::newDrawingContext(GHOST_TDrawingContextType type
 
   if (type == GHOST_kDrawingContextTypeMetal) {
 
-    GHOST_Context *context = new GHOST_ContextIOS(m_uiview, m_metalView);
+    GHOST_Context *context = new GHOST_ContextIOS(want_context_params_, m_uiview, m_metalView);
 
     if (context->initializeDrawingContext())
       return context;

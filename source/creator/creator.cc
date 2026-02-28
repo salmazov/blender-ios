@@ -121,9 +121,13 @@ char **environ = nullptr;
 
 BLI_STATIC_ASSERT(ENDIAN_ORDER == L_ENDIAN, "Blender only builds on little endian systems")
 
+#ifdef WITH_APPLE_CROSSPLATFORM
+namespace blender {
 void WM_main_entry(bContext *C);
+}
 int GHOST_iosmain(int argc, const char **argv);
-void GHOST_iosfinalize(bContext *C);
+void GHOST_iosfinalize(blender::bContext *C);
+#endif
 
 /* -------------------------------------------------------------------- */
 /** \name GMP Allocator Workaround
@@ -670,7 +674,7 @@ int main(int argc,
 
 #  ifdef WITH_APPLE_CROSSPLATFORM
     /* iOS Main loop handled differently. */
-    WM_main_entry(C);
+    blender::WM_main_entry(C);
     GHOST_iosfinalize(C);
 #  else
     WM_main(C);

@@ -41,15 +41,8 @@ class GHOST_EventTrackpad : public GHOST_Event {
     trackpad_event_data_.deltaX = deltaX;
     trackpad_event_data_.deltaY = deltaY;
     trackpad_event_data_.isDirectionInverted = isDirectionInverted;
+    trackpad_event_data_.numFingers = numFingers;
     data_ = &trackpad_event_data_;
-    m_trackpadEventData.subtype = subtype;
-    m_trackpadEventData.x = x;
-    m_trackpadEventData.y = y;
-    m_trackpadEventData.deltaX = deltaX;
-    m_trackpadEventData.deltaY = deltaY;
-    m_trackpadEventData.isDirectionInverted = isDirectionInverted;
-    m_trackpadEventData.numFingers = numFingers;
-    m_data = &m_trackpadEventData;
   }
 
  protected:

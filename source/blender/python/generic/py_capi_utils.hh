@@ -10,6 +10,8 @@
 
 #include <Python.h>
 
+#include "python_compat.hh"
+
 #include <optional>
 #include <string>
 #include <type_traits>

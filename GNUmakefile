@@ -472,7 +472,7 @@ tools: .FORCE
 
 	@echo
 	@echo Building Blender ...
-	$(BUILD_COMMAND) -C "$(BUILD_DIR)" -j $(NPROCS) glsl_preprocess
+	$(BUILD_COMMAND) -C "$(BUILD_DIR)" -j $(NPROCS) shader_tool
 	$(BUILD_COMMAND) -C "$(BUILD_DIR)" -j $(NPROCS) datatoc
 	$(BUILD_COMMAND) -C "$(BUILD_DIR)" -j $(NPROCS) makesrna
 	$(BUILD_COMMAND) -C "$(BUILD_DIR)" -j $(NPROCS) makesdna

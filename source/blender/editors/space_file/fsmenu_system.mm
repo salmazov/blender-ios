@@ -55,7 +55,9 @@
 #  include <mntent.h>
 #endif
 
-#include "fsmenu.h" /* include ourselves */
+#include "fsmenu.hh" /* include ourselves */
+
+namespace blender {
 
 /* FSMENU HANDLING */
 
@@ -133,7 +135,7 @@ static GHash *fsmenu_xdg_user_dirs_parse(const char *home)
 static void fsmenu_xdg_user_dirs_free(GHash *xdg_map)
 {
   if (xdg_map != NULL) {
-    BLI_ghash_free(xdg_map, MEM_freeN, MEM_freeN);
+    BLI_ghash_free(xdg_map, MEM_delete_void, MEM_delete_void);
   }
 }
 
@@ -291,14 +293,14 @@ void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
 
   FS_UDIR_PATH(U.fontdir, ICON_FILE_FONT)
   FS_UDIR_PATH(U.textudir, ICON_FILE_IMAGE)
-  LISTBASE_FOREACH (bUserScriptDirectory *, script_dir, &U.script_directories) {
-    if (UNLIKELY(script_dir->dir_path[0] == '\0')) {
+  for (bUserScriptDirectory &script_dir : U.script_directories) {
+    if (UNLIKELY(script_dir.dir_path[0] == '\0')) {
       continue;
     }
     fsmenu_insert_entry(fsmenu,
                         FS_CATEGORY_OTHER,
-                        script_dir->dir_path,
-                        script_dir->name,
+                        script_dir.dir_path,
+                        script_dir.name,
                         ICON_FILE_SCRIPT,
                         FS_INSERT_LAST);
   }
@@ -307,3 +309,5 @@ void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
 
 #undef FS_UDIR_PATH
 }
+
+}  // namespace blender

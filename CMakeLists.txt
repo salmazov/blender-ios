@@ -1497,7 +1497,7 @@ if(WITH_PYTHON)
   # because UNIX will search for the old Python paths which may not exist.
   # giving errors about missing paths before this case is met.
   if(DEFINED PYTHON_VERSION)
-    if("${PYTHON_VERSION}" VERSION_LESS "3.13")
+    if("${PYTHON_VERSION}" VERSION_LESS "3.13" AND NOT WITH_APPLE_CROSSPLATFORM)
       message(
         FATAL_ERROR
         "At least Python 3.13 is required to build, but found Python ${PYTHON_VERSION}"

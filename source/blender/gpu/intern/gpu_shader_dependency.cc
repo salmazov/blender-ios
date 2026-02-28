@@ -538,8 +538,6 @@ void gpu_shader_dependency_init()
   if (source_ptr_opt) {
     delete source_ptr_opt.value();
   }
-#  ifdef WITH_OPENGL_BACKEND
-  const blender::StringRefNull patch_basis_source = openSubdiv_getGLSLPatchBasisSource();
   g_sources->add_new(
       "osd_patch_basis.glsl",
       new GPUSource("osd_patch_basis.glsl",
@@ -548,7 +546,6 @@ void gpu_shader_dependency_init()
                     g_functions,
                     g_formats,
                     [](GPUSource &, GPUFunctionDictionary *, GPUPrintFormatMap *) {}));
-                    [](GPUSource &, GPUFunctionDictionnary *, GPUPrintFormatMap *) {}));
 #endif
 
   int errors = 0;

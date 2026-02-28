@@ -19,10 +19,10 @@
 
 #include "GHOST_Types.hh"
 #include "intern/GHOST_Context.hh"
-#include "intern/GHOST_ContextMTL.hh"
 #ifdef WITH_APPLE_CROSSPLATFORM
 #  include "intern/GHOST_ContextIOS.hh"
 #else
+#  include "intern/GHOST_ContextMTL.hh"
 #  include "intern/GHOST_ContextCGL.hh"
 #endif
 #include "intern/GHOST_Window.hh"

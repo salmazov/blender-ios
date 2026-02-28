@@ -93,72 +93,8 @@ struct ShaderCache {
         occupancy_tuning[DEVICE_KERNEL_INTEGRATOR_SORTED_PATHS_ARRAY] = {832, 832};
         break;
     }
-
-    ~ShaderCache();
-
-    /* Get the fastest available pipeline for the specified kernel. */
-    MetalKernelPipeline *get_best_pipeline(DeviceKernel kernel, const MetalDevice *device);
-
-    /* Non-blocking request for a kernel, optionally specialized to the scene being rendered by
-     * device. */
-    void load_kernel(DeviceKernel kernel, MetalDevice * device, MetalPipelineType pso_type);
-
-    bool should_load_kernel(
-        DeviceKernel device_kernel, const MetalDevice *device, MetalPipelineType pso_type);
-
-    void wait_for_all();
-
-    friend ShaderCache *get_shader_cache(id<MTLDevice> mtlDevice);
-
-    void compile_thread_func();
-
-    using PipelineCollection = std::vector<unique_ptr<MetalKernelPipeline>>;
-
-    struct OccupancyTuningParameters {
-      int threads_per_threadgroup = 0;
-      int num_threads_per_block = 0;
-    } occupancy_tuning[DEVICE_KERNEL_NUM];
-
-    std::mutex cache_mutex;
-
-    PipelineCollection pipelines[DEVICE_KERNEL_NUM];
-    id<MTLDevice> mtlDevice;
-
-    static bool running;
-    std::condition_variable cond_var;
-    std::deque<unique_ptr<MetalKernelPipeline>> request_queue;
-    std::vector<std::thread> compile_threads;
-    std::atomic_int incomplete_requests = 0;
-    std::atomic_int incomplete_specialization_requests = 0;
-  };
-
-  bool ShaderCache::running = true;
-
-  const int MAX_POSSIBLE_GPUS_ON_SYSTEM = 8;
-  using DeviceShaderCache = std::pair<id<MTLDevice>, unique_ptr<ShaderCache>>;
-  int g_shaderCacheCount = 0;
-  DeviceShaderCache g_shaderCache[MAX_POSSIBLE_GPUS_ON_SYSTEM];
-
-  /* Next UID for associating a MetalDispatchPipeline with an originating MetalKernelPipeline. */
-  static std::atomic_int g_next_pipeline_id = 0;
-
-  ShaderCache *get_shader_cache(id<MTLDevice> mtlDevice)
-  {
-    for (int i = 0; i < g_shaderCacheCount; i++) {
-      if (g_shaderCache[i].first == mtlDevice) {
-        return g_shaderCache[i].second.get();
-      }
-    }
-
-    static thread_mutex g_shaderCacheCountMutex;
-    g_shaderCacheCountMutex.lock();
-    int index = g_shaderCacheCount++;
-    g_shaderCacheCountMutex.unlock();
-
-    assert(index < MAX_POSSIBLE_GPUS_ON_SYSTEM);
-    g_shaderCache[index].first = mtlDevice;
-    g_shaderCache[index].second = make_unique<ShaderCache>(mtlDevice);
-    return g_shaderCache[index].second.get();
+    occupancy_tuning[DEVICE_KERNEL_INTEGRATOR_SORT_BUCKET_PASS] = {1024, 1024};
+    occupancy_tuning[DEVICE_KERNEL_INTEGRATOR_SORT_WRITE_PASS] = {1024, 1024};
   }
 
   ~ShaderCache();
@@ -479,28 +415,6 @@ bool MetalKernelPipeline::should_use_binary_archive() const
         /* Don't archive if we have opted out by env var. */
         return false;
       }
-
-      if (pso_type == PSO_GENERIC) {
-        /* Archive the generic kernels. */
-        return true;
-      }
-
-      if ((device_kernel >= DEVICE_KERNEL_INTEGRATOR_SHADE_BACKGROUND &&
-           device_kernel <= DEVICE_KERNEL_INTEGRATOR_SHADE_SHADOW) ||
-          (device_kernel >= DEVICE_KERNEL_SHADER_EVAL_DISPLACE &&
-           device_kernel <= DEVICE_KERNEL_SHADER_EVAL_CURVE_SHADOW_TRANSPARENCY))
-      {
-        /* Archive all shade kernels - they take a long time to compile. */
-        return true;
-      }
-
-    if ((device_kernel >= DEVICE_KERNEL_INTEGRATOR_SHADE_BACKGROUND &&
-         device_kernel <= DEVICE_KERNEL_INTEGRATOR_SHADE_SHADOW) ||
-        (device_kernel >= DEVICE_KERNEL_SHADER_EVAL_DISPLACE &&
-         device_kernel <= DEVICE_KERNEL_SHADER_EVAL_VOLUME_DENSITY))
-    {
-      /* Archive all shade kernels - they take a long time to compile. */
-      return true;
     }
 
     if (use_metalrt && device_kernel_has_intersection(device_kernel)) {

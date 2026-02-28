@@ -3722,14 +3722,14 @@ static void textedit_begin(bContext *C, Button *but, HandleButtonData *data)
    */
   rcti button_pixel_rect;
   ARegion *region = CTX_wm_region(C);
-  ui_but_to_pixelrect(&button_pixel_rect, region, but->block, but);
+  button_to_pixelrect(&button_pixel_rect, region, but->block, but);
   GHOST_Rect text_box(button_pixel_rect.xmin + region->winrct.xmin,
                       button_pixel_rect.ymin + region->winrct.ymin,
                       button_pixel_rect.xmax + region->winrct.xmin,
                       button_pixel_rect.ymax + region->winrct.ymin);
 
   /* IOS_FIXME - Is this the right place to get the font? */
-  uiFontStyle fstyle = UI_style_get()->widget;
+  uiFontStyle fstyle = style_get()->widget;
 
   GHOST_KeyboardProperties keyboard_properties;
   keyboard_properties.keyboard_type = is_num_but ?
@@ -3744,14 +3744,16 @@ static void textedit_begin(bContext *C, Button *but, HandleButtonData *data)
   keyboard_properties.inital_text_state = GHOST_KeyboardProperties::select_all_text;
   keyboard_properties.text_select_range[0] = 0;
   keyboard_properties.text_select_range[1] = 0;
-  keyboard_properties.text_box_origin[0] = text_box.m_l;
-  keyboard_properties.text_box_origin[1] = text_box.m_b;
+  keyboard_properties.text_box_origin[0] = text_box.l_;
+  keyboard_properties.text_box_origin[1] = text_box.b_;
   keyboard_properties.text_box_size[0] = text_box.getWidth();
   keyboard_properties.text_box_size[1] = text_box.getHeight();
   keyboard_properties.tip_text = but->tip.data();
   keyboard_properties.text_string = text_edit.edit_string;
 
-  GHOST_popupOnScreenKeyboard(static_cast<GHOST_WindowHandle>(win->ghostwin), keyboard_properties);
+  GHOST_ISystem *ghost_sys = GHOST_ISystem::getSystem();
+  ghost_sys->popupOnScreenKeyboard(
+      static_cast<GHOST_IWindow *>(win->runtime->ghostwin), keyboard_properties);
 #endif
 
   WM_cursor_modal_set(win, WM_CURSOR_TEXT_EDIT);
@@ -3776,9 +3778,11 @@ static void textedit_end(bContext *C, Button *but, HandleButtonData *data)
 
 #if (WITH_APPLE_CROSSPLATFORM)
   /* Hide keyboard and retrieve keyboard text */
-  GHOST_hideOnScreenKeyboard(static_cast<GHOST_WindowHandle>(win->ghostwin));
-  const char *keyboard_string = GHOST_getKeyboardInput(
-      static_cast<GHOST_WindowHandle>(win->ghostwin));
+  GHOST_ISystem *ghost_sys_end = GHOST_ISystem::getSystem();
+  ghost_sys_end->hideOnScreenKeyboard(
+      static_cast<GHOST_IWindow *>(win->runtime->ghostwin));
+  const char *keyboard_string = ghost_sys_end->getKeyboardInput(
+      static_cast<GHOST_IWindow *>(win->runtime->ghostwin));
 
   /*
    * IOS_FIXME:
@@ -4259,8 +4263,9 @@ static int do_but_textedit(
 #if (WITH_APPLE_CROSSPLATFORM)
       case EVT_TEXTEDIT: {
         if (but) {
-          const char *keyboard_string = GHOST_getKeyboardInput(
-              static_cast<GHOST_WindowHandle>(win->ghostwin));
+          GHOST_ISystem *ghost_sys_evt = GHOST_ISystem::getSystem();
+          const char *keyboard_string = ghost_sys_evt->getKeyboardInput(
+              static_cast<GHOST_IWindow *>(win->runtime->ghostwin));
           if (but->active->text_edit.edit_string) {
             ui_textedit_string_set(but, but->active->text_edit, keyboard_string);
           }

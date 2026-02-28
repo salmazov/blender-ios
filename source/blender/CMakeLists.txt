@@ -133,6 +133,7 @@ add_subdirectory(ikplugin)
 add_subdirectory(simulation)
 add_subdirectory(geometry)
 add_subdirectory(gpu)
+
 add_subdirectory(gpu/shaders)
 add_subdirectory(gpu/tests/shaders)
 add_subdirectory(imbuf)

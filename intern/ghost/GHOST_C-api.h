@@ -9,7 +9,18 @@
 #pragma once
 
 #include "GHOST_Rect.hh"
-#include "GHOST_Types.h"
+#include "GHOST_Types.hh"
+
+/* Opaque handle types for the C API (removed from GHOST_Types.hh on main,
+ * but still needed for the iOS C-API bridge). */
+typedef void *GHOST_SystemHandle;
+typedef void *GHOST_WindowHandle;
+typedef void *GHOST_EventHandle;
+typedef void *GHOST_RectangleHandle;
+typedef void *GHOST_TimerTaskHandle;
+typedef void *GHOST_EventConsumerHandle;
+typedef void *GHOST_ContextHandle;
+typedef void *GHOST_XrContextHandle;
 
 #ifdef __cplusplus
 extern "C" {

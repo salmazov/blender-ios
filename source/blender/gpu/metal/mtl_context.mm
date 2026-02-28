@@ -97,9 +97,6 @@ void MTLContext::set_ghost_context(GHOST_IContext *ghostCtxHandle)
   GHOST_ContextMetal *ghost_mtl_ctx = dynamic_cast<GHOST_ContextMetal *>(ghost_ctx);
   if (ghost_mtl_ctx != nullptr) {
     default_fbo_mtltexture_ = ghost_mtl_ctx->metalOverlayTexture();
-  GHOST_ContextMTL *ghost_cgl_ctx = dynamic_cast<GHOST_ContextMTL *>(ghost_ctx);
-  if (ghost_cgl_ctx != nullptr) {
-    default_fbo_mtltexture_ = ghost_cgl_ctx->metalOverlayTexture();
 
     MTL_LOG_DEBUG(
         "Binding GHOST context MTL %p to GPU context %p. (Device: %p, queue: %p, texture: %p)",
@@ -162,10 +159,8 @@ void MTLContext::set_ghost_context(GHOST_IContext *ghostCtxHandle)
   }
   else {
     MTL_LOG_DEBUG(
-        " Failed to bind GHOST context to MTLContext -- GHOST_ContextMetal is null "
+        "Failed to bind GHOST context to MTLContext -- GHOST_ContextMetal is null "
         "(GhostContext: %p, GhostContext_MTL: %p)",
-        "Failed to bind GHOST context to MTLContext -- GHOST_ContextMTL is null "
-        "(GhostContext: %p, GhostContext_CGL: %p)\n",
         ghost_ctx,
         ghost_mtl_ctx);
     BLI_assert(false);
@@ -241,7 +236,9 @@ MTLContext::MTLContext(GHOST_IWindow *ghost_window, GHOST_IContext *ghost_contex
 
   /* Register present callback. */
   this->ghost_context_->metalRegisterPresentCallback(&present);
+#ifndef WITH_APPLE_CROSSPLATFORM
   this->ghost_context_->metalRegisterXrBlitCallback(&xr_blit);
+#endif
 
   /* Create FrameBuffer handles. */
   MTLFrameBuffer *mtl_front_left = new MTLFrameBuffer(this, "front_left");

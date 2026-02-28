@@ -1727,11 +1727,6 @@ elseif(APPLE)
     XCODE_ATTRIBUTE_INSTALL_PATH "$(LOCAL_APPS_DIR)"
   )
 
-  if(WITH_BLENDER_THUMBNAILER)
-    set(OSX_THUMBNAILER_SOURCEDIR ${OSX_APP_SOURCEDIR}/Contents/PlugIns/blender-thumbnailer.appex)
-    set_target_properties(blender-thumbnailer PROPERTIES
-      BUNDLE_EXTENSION appex
-      MACOSX_BUNDLE_INFO_PLIST ${OSX_THUMBNAILER_SOURCEDIR}/Contents/Info.plist
   if(WITH_APPLE_CROSSPLATFORM)
     MESSAGE(STATUS "-- CONFIGURING IOS PLIST -- ")
     set_target_properties(blender PROPERTIES

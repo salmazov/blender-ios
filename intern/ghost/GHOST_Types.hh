@@ -690,7 +690,6 @@ struct GHOST_TEventTrackpadData {
   uint numFingers;
 };
 
-enum GHOST_TDragnDropTypes {
 typedef enum {
   GHOST_kTouchEventUnknown = 0,
   GHOST_kTouchEventEdgeSwipeInLeft,
@@ -710,7 +709,7 @@ typedef struct {
   uint numFingers;
 } GHOST_TEventTouchData;
 
-typedef enum {
+enum GHOST_TDragnDropTypes {
   GHOST_kDragnDropTypeUnknown = 0,
   GHOST_kDragnDropTypeFilenames, /* Array of strings representing file names (full path). */
   GHOST_kDragnDropTypeString,    /* Unformatted text UTF8 string. */
@@ -1428,7 +1427,6 @@ enum GHOST_NDOF_ButtonT {
 
 /** How to setup an onscreen keyboard */
 struct GHOST_KeyboardProperties {
-typedef struct GHOST_KeyboardProperties {
 
   /* Initial starting state of text box. */
   enum text_field_state {
@@ -1463,7 +1461,5 @@ typedef struct GHOST_KeyboardProperties {
   /* Initial string. */
   const char *text_string;
 };
-
-} GHOST_KeyboardProperties;
 
 #endif

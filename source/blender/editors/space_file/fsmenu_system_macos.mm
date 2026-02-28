@@ -108,10 +108,11 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
                               FS_INSERT_FIRST);
   }
 
-  /* The LSSharedFileList API has been deprecated, and no replacement has been provided to obtain
-   * the user's Finder Favorites items from other applications. Ignore these deprecation warnings.
-   * It is unknown when this API will be fully removed from macOS. */
   if (read_bookmarks) {
+#ifndef WITH_APPLE_CROSSPLATFORM
+    /* The LSSharedFileList API has been deprecated, and no replacement has been provided to obtain
+     * the user's Finder Favorites items from other applications. Ignore these deprecation warnings.
+     * It is unknown when this API will be fully removed from macOS. */
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     LSSharedFileListRef shared_list = LSSharedFileListCreate(
@@ -157,6 +158,7 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
     [paths_array release];
     CFRelease(shared_list);
 #pragma GCC diagnostic pop
+#endif /* !WITH_APPLE_CROSSPLATFORM */
   }
 }
 

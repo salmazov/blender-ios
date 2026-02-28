@@ -81,17 +81,10 @@ if(NOT WITH_CROSSCOMPILED_TOOLS)
     )
   endif()
 
-# `SRC_DNA_INC` is defined in the parent directory.
+  # `SRC_DNA_INC` is defined in the parent directory.
 
-add_c_and_cxx_flags_custom_test(makesdna)
+  add_c_and_cxx_flags_custom_test(makesdna)
 
-add_executable(makesdna ${SRC} ${SRC_DNA_INC})
-setup_platform_linker_flags(makesdna)
-setup_platform_linker_libs(makesdna)
-blender_target_include_dirs(makesdna ${INC})
-blender_target_include_dirs_sys(makesdna ${INC_SYS})
-target_link_libraries(makesdna ${LIB})
-target_link_libraries(makesdna PRIVATE bf::dependencies::pthreads)
   add_executable(makesdna ${SRC} ${SRC_DNA_INC})
   setup_platform_linker_flags(makesdna)
   setup_platform_linker_libs(makesdna)
@@ -103,6 +96,8 @@ target_link_libraries(makesdna PRIVATE bf::dependencies::pthreads)
     if(DEFINED PTHREADS_LIBRARIES)
       target_link_libraries(makesdna PRIVATE ${PTHREADS_LIBRARIES})
     endif()
+  else()
+    target_link_libraries(makesdna PRIVATE bf::dependencies::pthreads)
   endif()
 endif()
 

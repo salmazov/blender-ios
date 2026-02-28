@@ -10,8 +10,9 @@
 #  include <opensubdiv/osd/mtlPatchShaderSource.h>
 #endif
 #if defined(WITH_VULKAN_BACKEND) || defined(WITH_OPENGL_BACKEND)
-#ifndef WITH_APPLE_CROSSPLATFORM
-#  include <opensubdiv/osd/glslPatchShaderSource.h>
+#  ifndef WITH_APPLE_CROSSPLATFORM
+#    include <opensubdiv/osd/glslPatchShaderSource.h>
+#  endif
 #endif
 
 #include "MEM_guardedalloc.h"
@@ -51,11 +52,9 @@ const char *openSubdiv_getGLSLPatchBasisSource()
     patch_basis_source += OpenSubdiv::Osd::MTLPatchShaderSource::GetPatchBasisShaderSource();
 #endif
 #if defined(WITH_OPENGL_BACKEND) || defined(WITH_VULKAN_BACKEND)
+#  ifndef WITH_APPLE_CROSSPLATFORM
     patch_basis_source += OpenSubdiv::Osd::GLSLPatchShaderSource::GetPatchBasisShaderSource();
-#ifdef __APPLE__
-    patch_basis_source = OpenSubdiv::Osd::MTLPatchShaderSource::GetPatchBasisShaderSource();
-#else
-    patch_basis_source = OpenSubdiv::Osd::GLSLPatchShaderSource::GetPatchBasisShaderSource();
+#  endif
 #endif
   }
   return patch_basis_source.c_str();

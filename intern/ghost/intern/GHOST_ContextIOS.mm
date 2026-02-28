@@ -32,15 +32,13 @@ int GHOST_ContextIOS::s_sharedCount = 0;
 
 static const MTLPixelFormat METAL_FRAMEBUFFERPIXEL_FORMAT_EDR = MTLPixelFormatRGBA16Float;
 
-GHOST_ContextIOS::GHOST_ContextIOS(UIView *uiView, MTKView *metalView)
-    : GHOST_Context(false), m_uiView(uiView), m_metalView(metalView), m_metalRenderPipeline(nil)
 GHOST_ContextIOS::GHOST_ContextIOS(const GHOST_ContextParams &context_params,
                                    UIView *uiView,
                                    MTKView *metalView)
     : GHOST_Context(context_params),
-      ui_view_(uiView),
-      metal_view_(metalView),
-      metal_render_pipeline_(nil)
+      m_uiView(uiView),
+      m_metalView(metalView),
+      m_metalRenderPipeline(nil)
 {
   /* Init swapchain */
   current_swapchain_index = 0;
@@ -115,7 +113,12 @@ GHOST_ContextIOS::~GHOST_ContextIOS()
   }
 }
 
-GHOST_TSuccess GHOST_ContextIOS::swapBuffers()
+GHOST_TSuccess GHOST_ContextIOS::swapBufferAcquire()
+{
+  return GHOST_kSuccess;
+}
+
+GHOST_TSuccess GHOST_ContextIOS::swapBufferRelease()
 {
   metalSwapBuffers();
   return GHOST_kSuccess;

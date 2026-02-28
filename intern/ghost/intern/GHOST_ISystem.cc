@@ -164,12 +164,11 @@ GHOST_TSuccess GHOST_ISystem::createSystem(bool verbose, [[maybe_unused]] bool b
 #elif defined(__APPLE__)
 #  if defined(WITH_APPLE_CROSSPLATFORM)
     backends_attempted.push_back({"IOS"});
-    m_system = new GHOST_SystemIOS();
+    system_ = new GHOST_SystemIOS();
 #  else
     backends_attempted.push_back({"COCOA"});
     CLOG_INFO(&LOG, "Create Cocoa system");
     system_ = new GHOST_SystemCocoa();
-    m_system = new GHOST_SystemCocoa();
 #  endif
 
 #endif

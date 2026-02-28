@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+# -------------- IPAD CROSS COMPILE TOOLS ----------- #
+if(NOT WITH_CROSSCOMPILED_TOOLS)
 
 # -----------------------------------------------------------------------------
 # Build `shader_tool` executable.
@@ -38,3 +40,5 @@ endif()
 # `SRC_DNA_INC` is defined in the parent directory.
 add_executable(shader_tool ${SRC})
 optimize_debug_target(shader_tool)
+
+endif()

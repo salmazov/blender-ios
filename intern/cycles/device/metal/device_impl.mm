@@ -496,7 +496,7 @@ void MetalDevice::compile_and_load(const int device_id, MetalPipelineType pso_ty
       options.languageVersion = MTLLanguageVersion3_1;
     }
 #  endif
-#  if defined(MAC_OS_VERSION_15_0)
+#  if defined(MAC_OS_VERSION_15_0) && !defined(WITH_APPLE_CROSSPLATFORM)
     if (@available(macos 15.0, *)) {
       options.languageVersion = MTLLanguageVersion3_2;
       if (const char *loglevel = getenv("MTL_LOG_LEVEL")) {

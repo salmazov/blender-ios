@@ -13,7 +13,8 @@
 #include "BLI_utildefines.h" /* IWYU pragma: keep. */
 #include "python_compat.hh"  /* IWYU pragma: keep. */
 
-/* Removed in Python 3.13. */
+/* Removed in Python 3.13, still a macro in 3.11-3.12. Only provide body for 3.14+. */
+#if PY_VERSION_HEX >= 0x030e0000
 int _PyArg_CheckPositional(const char *name, Py_ssize_t nargs, Py_ssize_t min, Py_ssize_t max)
 {
   BLI_assert(min >= 0);
@@ -69,3 +70,4 @@ int _PyArg_CheckPositional(const char *name, Py_ssize_t nargs, Py_ssize_t min, P
 
   return 1;
 }
+#endif /* PY_VERSION_HEX >= 0x030e0000 */

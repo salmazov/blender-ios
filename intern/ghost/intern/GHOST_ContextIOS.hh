@@ -52,7 +52,6 @@ class GHOST_ContextIOS : public GHOST_Context {
   /**
    * Constructor.
    */
-  GHOST_ContextIOS(UIView *uiView, MTKView *metalView);
   GHOST_ContextIOS(const GHOST_ContextParams &context_params, UIView *uiView, MTKView *metalView);
 
   /**
@@ -61,10 +60,16 @@ class GHOST_ContextIOS : public GHOST_Context {
   ~GHOST_ContextIOS();
 
   /**
-   * Swaps front and back buffers of a window.
+   * Acquire next buffer for drawing.
    * \return A boolean success indicator.
    */
-  GHOST_TSuccess swapBuffers() override;
+  GHOST_TSuccess swapBufferAcquire() override;
+
+  /**
+   * Release buffer and present.
+   * \return A boolean success indicator.
+   */
+  GHOST_TSuccess swapBufferRelease() override;
 
   /**
    * Activates the drawing context of this window.

@@ -45,7 +45,7 @@ if(WITH_APPLE_CROSSPLATFORM)
 
   # --- Cross compile host tools ----
 
-  # Enable cross-compiled tools (glsl_preprocess, makesdna, makesrna etc.)
+  # Enable cross-compiled tools (shader_tool, makesdna, makesrna etc.)
   set(WITH_CROSSCOMPILED_TOOLS ON CACHE BOOL "" FORCE)
 
   # Fetch Cmake arguments for host build process, ensuring these are consistent with what is
@@ -58,7 +58,7 @@ if(WITH_APPLE_CROSSPLATFORM)
     else()
       if(CACHE_VAR_TYPE STREQUAL "BOOL")
         # Remove IPAD arg
-        if(NOT CACHE_VAR STREQUAL "APPLE_TARGET_DEVICE" AND NOT CACHE_VAR STREQUAL "WITH_CROSSCOMPILED_TOOLS")
+        if(NOT CACHE_VAR STREQUAL "APPLE_TARGET_DEVICE" AND NOT CACHE_VAR STREQUAL "WITH_CROSSCOMPILED_TOOLS" AND NOT CACHE_VAR STREQUAL "WITH_APPLE_CROSSPLATFORM")
           set(CMAKE_ARGS "${CMAKE_ARGS} -D${CACHE_VAR}=${${CACHE_VAR}}")
         else()
           # Disable iPad for tools compilation
@@ -68,14 +68,14 @@ if(WITH_APPLE_CROSSPLATFORM)
     endif()
   endforeach()
 
-  message(STATUS " \n---------------------------\n CROSS COMPILE TOOLS:\n\nDetect CMake configuration for host-tools-build (datatoc, datatoc_icon, makesdna, makesrna, msgformat, glsl_preprocess) \n\nInheriting CMAKE_ARGS:\n${CMAKE_ARGS}\n")
+  message(STATUS " \n---------------------------\n CROSS COMPILE TOOLS:\n\nDetect CMake configuration for host-tools-build (datatoc, datatoc_icon, makesdna, makesrna, msgformat, shader_tool) \n\nInheriting CMAKE_ARGS:\n${CMAKE_ARGS}\n")
 
 
   # Run host build process to ensure host tools are up to date. (creating build_darwin_tools folder)
   # NOTE: ENV command used to isolate environment, as running inside Xcode otherhwise causes Cflags to be inherited.
   set(CROSSCOMPILE_TOOLDIR "${CMAKE_SOURCE_DIR}/../build_ios/build_darwin_tools/${CMAKE_BUILD_TYPE}")
   # Override the defines that are used for building Blender (make sure they come after CMAKE_ARGS)
-  set(CMAKE_TOOLS_ARGS "${CMAKE_ARGS} -DWITH_CROSSCOMPILED_TOOLS=ON -DAPPLE_TARGET_DEVICE=macos ${CROSSCOMPILE_C_FLAGS} ${CROSSCOMPILE_CXX_FLAGS}")
+  set(CMAKE_TOOLS_ARGS "${CMAKE_ARGS} -DAPPLE_TARGET_DEVICE=macos ${CROSSCOMPILE_C_FLAGS} ${CROSSCOMPILE_CXX_FLAGS}")
   # IOS_FIXME - Add Cross-Compile defines to the C-Flags
   # This is a bit of a fudge to make sure that the cross-compiled tools know that we're building
   # in a cross-compile environment in order that all class and struct definitions match (specificially for RNA).
@@ -87,7 +87,7 @@ if(WITH_APPLE_CROSSPLATFORM)
   get_filename_component(CMAKE_BIN_DIRECTORY "${CMAKE_COMMAND}" DIRECTORY)
   add_custom_target(blender_cross_tools_compile
     COMMENT "\n---------------------------\n Building Cross Compile Tools\n"
-    COMMAND env -i PATH="${CMAKE_BIN_DIRECTORY}:$ENV{PATH}" BUILD_CMAKE_ARGS=${CMAKE_TOOLS_ARGS} BUILD_DIR=${CROSSCOMPILE_TOOLDIR} make tools
+    COMMAND env -i HOME="$ENV{HOME}" PATH="${CMAKE_BIN_DIRECTORY}:$ENV{PATH}" BUILD_CMAKE_ARGS=${CMAKE_TOOLS_ARGS} BUILD_DIR=${CROSSCOMPILE_TOOLDIR} make tools
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
   )
 
@@ -99,29 +99,29 @@ if(WITH_APPLE_CROSSPLATFORM)
   add_executable(msgfmt IMPORTED GLOBAL)
   add_executable(datatoc IMPORTED GLOBAL)
   #add_executable(datatoc_icon IMPORTED GLOBAL)
-  add_executable(glsl_preprocess IMPORTED GLOBAL)
+  add_executable(shader_tool IMPORTED GLOBAL)
   add_dependencies(makesdna blender_cross_tools_compile)
   add_dependencies(makesrna blender_cross_tools_compile)
   add_dependencies(msgfmt blender_cross_tools_compile)
   add_dependencies(datatoc blender_cross_tools_compile)
   #add_dependencies(datatoc_icon blender_cross_tools_compile)
-  add_dependencies(glsl_preprocess blender_cross_tools_compile)
+  add_dependencies(shader_tool blender_cross_tools_compile)
   message(STATUS "Host tools will be generated in: ${CROSSCOMPILE_TOOLDIR}")
   set_property(TARGET makesdna PROPERTY IMPORTED_LOCATION "${CROSSCOMPILE_TOOLDIR}/bin/makesdna")
   set_property(TARGET makesrna PROPERTY IMPORTED_LOCATION "${CROSSCOMPILE_TOOLDIR}/bin/makesrna")
   set_property(TARGET msgfmt PROPERTY IMPORTED_LOCATION "${CROSSCOMPILE_TOOLDIR}/bin/msgfmt")
   set_property(TARGET datatoc PROPERTY IMPORTED_LOCATION "${CROSSCOMPILE_TOOLDIR}/bin/datatoc")
   #set_property(TARGET datatoc_icon PROPERTY IMPORTED_LOCATION "${CROSSCOMPILE_TOOLDIR}/bin/datatoc_icon")
-  set_property(TARGET glsl_preprocess PROPERTY IMPORTED_LOCATION "${CROSSCOMPILE_TOOLDIR}/bin/glsl_preprocess")
+  set_property(TARGET shader_tool PROPERTY IMPORTED_LOCATION "${CROSSCOMPILE_TOOLDIR}/bin/shader_tool")
   message(STATUS "makesdna: ${CROSSCOMPILE_TOOLDIR}/bin/makesdna")
   message(STATUS "makesrna: ${CROSSCOMPILE_TOOLDIR}/bin/makesrna")
   message(STATUS "msgfmt: ${CROSSCOMPILE_TOOLDIR}/bin/msgfmt")
   message(STATUS "datatoc: ${CROSSCOMPILE_TOOLDIR}/bin/datatoc")
   #message(STATUS "datatoc_icon: ${CROSSCOMPILE_TOOLDIR}/bin/datatoc_icon")
-  message(STATUS "glsl_preprocess: ${CROSSCOMPILE_TOOLDIR}/bin/glsl_preprocess")
+  message(STATUS "shader_tool: ${CROSSCOMPILE_TOOLDIR}/bin/shader_tool")
   message(STATUS "\n---------------------------\n")
 else()
-  # Disable cross-compiled tools (glsl_preprocess, makesdna, makesrna etc.) if building on host.
+  # Disable cross-compiled tools (shader_tool, makesdna, makesrna etc.) if building on host.
   set(WITH_CROSSCOMPILED_TOOLS OFF CACHE BOOL "" FORCE)
 endif()
 
@@ -344,13 +344,22 @@ set(PLATFORM_LINKFLAGS "\
 
 if(WITH_CODEC_FFMPEG)
   set(FFMPEG_ROOT_DIR ${LIBDIR}/ffmpeg)
-  set(FFMPEG_FIND_COMPONENTS
-    avcodec avdevice avfilter avformat avutil
-    mp3lame ogg opus swresample swscale
-    theora theoradec theoraenc vorbis vorbisenc
-    vorbisfile vpx x264)
-  # Frameworks required by libavfilter, using legacy macOS CGL
-  string(APPEND PLATFORM_LINKFLAGS " -framework CoreImage -framework OpenGL")
+  if(WITH_APPLE_CROSSPLATFORM)
+    # iOS FFmpeg is built without avfilter
+    set(FFMPEG_FIND_COMPONENTS
+      avcodec avdevice avformat avutil
+      mp3lame ogg opus swresample swscale
+      theora theoradec theoraenc vorbis vorbisenc
+      vorbisfile vpx x264)
+  else()
+    set(FFMPEG_FIND_COMPONENTS
+      avcodec avdevice avfilter avformat avutil
+      mp3lame ogg opus swresample swscale
+      theora theoradec theoraenc vorbis vorbisenc
+      vorbisfile vpx x264)
+    # Frameworks required by libavfilter, using legacy macOS CGL
+    string(APPEND PLATFORM_LINKFLAGS " -framework CoreImage -framework OpenGL")
+  endif()
   if(EXISTS ${LIBDIR}/ffmpeg/lib/libaom.a)
     list(APPEND FFMPEG_FIND_COMPONENTS aom)
   endif()
@@ -382,6 +391,9 @@ if(WITH_OPENIMAGEDENOISE)
   if("${CMAKE_OSX_ARCHITECTURES}" STREQUAL "arm64")
     # OpenImageDenoise uses BNNS from the Accelerate framework.
     string(APPEND PLATFORM_LINKFLAGS " -framework Accelerate")
+  endif()
+endif()
+
 string(APPEND PLATFORM_CFLAGS " -pipe -funsigned-char -fno-strict-aliasing -ffp-contract=off")
 
 if(WITH_APPLE_CROSSPLATFORM)
@@ -460,7 +472,14 @@ set(TIFF_ROOT ${LIBDIR}/tiff)
 find_package(TIFF REQUIRED)
 
 set(fmt_ROOT ${LIBDIR}/fmt)
-find_package(fmt REQUIRED)
+if(NOT WITH_APPLE_CROSSPLATFORM)
+  find_package(fmt REQUIRED)
+else()
+  # iOS libs lack standalone fmt library. Do NOT find_package(fmt) here,
+  # because it would pick up the macOS .a which can't link into iOS.
+  # The header-only fallback in dependency_targets.cmake will provide
+  # bf::dependencies::fmt using OIIO's bundled fmt headers.
+endif()
 
 if(WITH_IMAGE_WEBP)
   set(WEBP_ROOT_DIR ${LIBDIR}/webp)
@@ -590,6 +609,8 @@ endif()
 
 if(WITH_RUBBERBAND)
   find_package(Rubberband REQUIRED)
+endif()
+
 if(WITH_OPENAL)
   set(OpenAL_ROOT ${LIBDIR}/openal)
   find_package(OpenAL REQUIRED)
@@ -607,10 +628,26 @@ if(WITH_CYCLES AND WITH_CYCLES_PATH_GUIDING)
   endif()
 endif()
 
-find_package(Eigen3 REQUIRED CONFIG)
+if(WITH_APPLE_CROSSPLATFORM)
+  # For iOS, use macOS Eigen3 headers (header-only library)
+  set(CROSSCOMPILE_HOST_LIBDIR "${CMAKE_SOURCE_DIR}/lib/macos_arm64")
+  set(Eigen3_DIR "${CROSSCOMPILE_HOST_LIBDIR}/eigen/share/eigen3/cmake")
+  find_package(Eigen3 REQUIRED CONFIG)
+else()
+  find_package(Eigen3 REQUIRED CONFIG)
+endif()
 
 if (WITH_LIBMV)
-  find_package(Ceres REQUIRED CONFIG)
+  if(WITH_APPLE_CROSSPLATFORM)
+    # Ceres not available in iOS precompiled libs
+    find_package(Ceres CONFIG)
+    if(NOT Ceres_FOUND)
+      set(WITH_LIBMV OFF)
+      message(STATUS "Ceres not found, disabling WITH_LIBMV for iOS build")
+    endif()
+  else()
+    find_package(Ceres REQUIRED CONFIG)
+  endif()
 endif()
 add_bundled_libraries(ceres/lib)
 

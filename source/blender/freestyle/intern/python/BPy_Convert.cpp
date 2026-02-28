@@ -64,7 +64,12 @@ PyObject *PyLong_subtype_new(PyTypeObject *ty, long value)
   BLI_assert(ty->tp_basicsize == sizeof(PyLongObject));
   PyLongObject *result = PyObject_NewVar(PyLongObject, ty, 1);
   PyLongObject *value_py = (PyLongObject *)PyLong_FromLong(value);
+#if PY_VERSION_HEX >= 0x030C0000 /* Python 3.12+ */
   memcpy(&result->long_value, &value_py->long_value, sizeof(result->long_value));
+#else
+  Py_SET_SIZE(result, Py_SIZE(value_py));
+  memcpy(result->ob_digit, value_py->ob_digit, abs(Py_SIZE(value_py)) * sizeof(digit));
+#endif
   Py_DECREF(value_py);
   return (PyObject *)result;
 }

@@ -308,6 +308,7 @@ bool BVHMetal::build_BLAS_mesh(Progress &progress,
     else if (@available(macos 26.0, ios 26.0, *)) {
       accelDesc.usage |= MTLAccelerationStructureUsagePreferFastIntersection;
     }
+#  endif
 
     MTLAccelerationStructureSizes accelSizes = [mtl_device
         accelerationStructureSizesWithDescriptor:accelDesc];
@@ -653,6 +654,7 @@ bool BVHMetal::build_BLAS_hair(Progress &progress,
     else if (@available(macos 26.0, ios 26.0, *)) {
       accelDesc.usage |= MTLAccelerationStructureUsagePreferFastIntersection;
     }
+#    endif
 
     MTLAccelerationStructureSizes accelSizes = [mtl_device
         accelerationStructureSizesWithDescriptor:accelDesc];
@@ -888,6 +890,7 @@ bool BVHMetal::build_BLAS_pointcloud(Progress &progress,
     else if (@available(macos 26.0, ios 26.0, *)) {
       accelDesc.usage |= MTLAccelerationStructureUsagePreferFastIntersection;
     }
+#  endif
 
     MTLAccelerationStructureSizes accelSizes = [mtl_device
         accelerationStructureSizesWithDescriptor:accelDesc];
@@ -1365,6 +1368,7 @@ bool BVHMetal::build_TLAS(Progress &progress,
     else if (@available(macos 26.0, ios 26.0, *)) {
       accelDesc.usage |= MTLAccelerationStructureUsagePreferFastIntersection;
     }
+#  endif
 
     MTLAccelerationStructureSizes accelSizes = [mtl_device
         accelerationStructureSizesWithDescriptor:accelDesc];

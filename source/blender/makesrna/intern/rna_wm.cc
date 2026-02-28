@@ -197,7 +197,6 @@ static const EnumPropertyItem event_ndof_type_items[] = {
 #  endif
     {0, nullptr, 0, nullptr, nullptr},
 };
-}  // namespace blender
 
 static const EnumPropertyItem event_touch_type_items[] = {
     {TOUCH_EDGE_SWIPE_IN_LEFT, "TOUCH_EDGE_SWIPE_IN_LEFT", 0, "Edge Swap In Left"},
@@ -207,6 +206,7 @@ static const EnumPropertyItem event_touch_type_items[] = {
     {TOUCH_FOUR_FINGER_TAP, "TOUCH_FOUR_FINGER_TAP", 0, "4 Fingers Tap", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
+}  // namespace blender
 #endif /* RNA_RUNTIME */
 
 namespace blender {

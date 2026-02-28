@@ -104,8 +104,7 @@ class GHOST_SystemIOS : public GHOST_System {
                               GHOST_GPUSettings glSettings,
                               const bool exclusive = false,
                               const bool is_dialog = false,
-                              const GHOST_IWindow *parentWindow = NULL);
-                              const GHOST_IWindow *parent_window = NULL) override;
+                              const GHOST_IWindow *parent_window = nullptr) override;
 
   /**
    * Create a new off-screen context.

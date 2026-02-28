@@ -46,7 +46,7 @@ class GHOST_WindowIOS : public GHOST_Window {
    * \param type: The type of drawing context installed in this window.
    * \param stereoVisual: Stereo visual for quad buffered stereo.
    */
-  GHOST_WindowIOS(GHOST_SystemIOS *m_system,
+  GHOST_WindowIOS(GHOST_SystemIOS *systemIOS,
                   const char *title,
                   int32_t left,
                   int32_t bottom,
@@ -54,7 +54,7 @@ class GHOST_WindowIOS : public GHOST_Window {
                   uint32_t height,
                   GHOST_TWindowState state,
                   GHOST_TDrawingContextType type = GHOST_kDrawingContextTypeNone,
-                  const bool stereoVisual = false,
+                  const GHOST_ContextParams &context_params = GHOST_ContextParams(GHOST_CONTEXT_PARAMS_NONE),
                   bool is_debug = false,
                   bool dialog = false,
                   GHOST_WindowIOS *parentWindow = 0);
@@ -78,10 +78,16 @@ class GHOST_WindowIOS : public GHOST_Window {
   void *getOSWindow() const override;
 
   /**
-   * Swaps the current framebuffer to the screen
+   * Acquire next buffer for drawing.
    * \return Success or failure
    */
-  GHOST_TSuccess swapBuffers() override;
+  GHOST_TSuccess swapBufferAcquire() override;
+
+  /**
+   * Release buffer and present.
+   * \return Success or failure
+   */
+  GHOST_TSuccess swapBufferRelease() override;
 
   /**
    * Sets the title displayed in the title bar.
@@ -371,7 +377,7 @@ class GHOST_EventIME : public GHOST_Event {
   GHOST_EventIME(uint64_t msec, GHOST_TEventType type, GHOST_IWindow *window, void *customdata)
       : GHOST_Event(msec, type, window)
   {
-    this->m_data = customdata;
+    this->data_ = customdata;
   }
 };
 
