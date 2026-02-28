@@ -785,8 +785,18 @@ if(PLATFORM_BUNDLED_LIBRARIES)
 endif()
 
 # Same as `CFBundleIdentifier` in Info.plist.
-# IOS_FIXME: Change 'test' back to 'blenderfoundation' before release
-# set(CMAKE_XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "org.blenderfoundation.blender")
+if(WITH_APPLE_CROSSPLATFORM)
+  # Use a development-friendly bundle ID that can be registered to personal teams.
+  # Override with -DBLENDER_BUNDLE_IDENTIFIER=... if needed.
+  if(NOT DEFINED BLENDER_BUNDLE_IDENTIFIER)
+    set(BLENDER_BUNDLE_IDENTIFIER "org.blenderfoundation.blender.dev")
+  endif()
+else()
+  if(NOT DEFINED BLENDER_BUNDLE_IDENTIFIER)
+    set(BLENDER_BUNDLE_IDENTIFIER "org.blenderfoundation.blender")
+  endif()
+endif()
+set(CMAKE_XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "${BLENDER_BUNDLE_IDENTIFIER}")
 
 if(WITH_APPLE_CROSSPLATFORM)
   if(APPLE_TARGET_IOS)

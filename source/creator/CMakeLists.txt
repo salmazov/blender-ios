@@ -369,18 +369,36 @@ else()
     # Copy bundled dynamic libraries into the build output app bundle so that
     # Xcode can deploy directly to device without running cmake --install.
     # The install rpath @loader_path/Assets/lib expects them there.
+    # Each dylib must be signed for iOS deployment.
     if(PLATFORM_BUNDLED_LIBRARIES)
       set(_ios_lib_dest "$<TARGET_BUNDLE_DIR:blender>/Assets/lib")
+
+      # Generate a script that signs all dylibs in the destination directory.
+      # Uses EXPANDED_CODE_SIGN_IDENTITY from Xcode env, falls back to ad-hoc.
+      set(_sign_script "${CMAKE_CURRENT_BINARY_DIR}/sign_bundled_libs.sh")
+      file(WRITE "${_sign_script}"
+"#!/bin/bash
+DEST=\"\$1\"
+IDENTITY=\"\${EXPANDED_CODE_SIGN_IDENTITY:--}\"
+for f in \"\$DEST\"/*.dylib; do
+  [ -f \"\$f\" ] && codesign --force --sign \"\$IDENTITY\" \"\$f\"
+done
+")
+
       add_custom_command(TARGET blender POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory "${_ios_lib_dest}"
-        COMMENT "Copying bundled libraries into app bundle..."
+        COMMENT "Copying and signing bundled libraries into app bundle..."
       )
       foreach(_lib ${PLATFORM_BUNDLED_LIBRARIES})
         add_custom_command(TARGET blender POST_BUILD
           COMMAND ${CMAKE_COMMAND} -E copy_if_different "${_lib}" "${_ios_lib_dest}/"
         )
       endforeach()
+      add_custom_command(TARGET blender POST_BUILD
+        COMMAND bash "${_sign_script}" "${_ios_lib_dest}"
+      )
       unset(_ios_lib_dest)
+      unset(_sign_script)
     endif()
 
   else()
@@ -1750,6 +1768,7 @@ elseif(APPLE)
       MACOSX_BUNDLE_INFO_PLIST ${OSX_APP_SOURCEDIR}/Info.plist
       MACOSX_BUNDLE_SHORT_VERSION_STRING "${BLENDER_VERSION}.${BLENDER_VERSION_PATCH}"
       MACOSX_BUNDLE_LONG_VERSION_STRING "${BLENDER_VERSION}.${BLENDER_VERSION_PATCH} ${BLENDER_DATE}"
+      MACOSX_BUNDLE_GUI_IDENTIFIER "${BLENDER_BUNDLE_IDENTIFIER}"
     )
 
     set(allresources ${storyboards})
