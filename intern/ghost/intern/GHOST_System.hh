@@ -211,6 +211,15 @@ class GHOST_System : public GHOST_ISystem {
     return GHOST_kFailure;
   };
 
+  /** \copydoc #GHOST_ISystem::showNativeFileDialog */
+  GHOST_TSuccess showNativeFileDialog(const char * /*title*/,
+                                      const char * /*default_path*/,
+                                      const char * /*filter_glob*/,
+                                      GHOST_TFileDialogAction /*action*/) override
+  {
+    return GHOST_kFailure;
+  };
+
   /***************************************************************************************
    * Other (internal) functionality.
    ***************************************************************************************/

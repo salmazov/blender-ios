@@ -247,6 +247,19 @@ class GHOST_SystemIOS : public GHOST_System {
   GHOST_TSuccess stopSecurityScopedFileAccess(const char *filepath);
 
   /**
+   * Show a native iOS file open/save dialog using UIDocumentPickerViewController.
+   * \param title: The title of the dialog.
+   * \param default_path: The default file path to start browsing from.
+   * \param filter_glob: Glob pattern filter (e.g. "*.blend"), or nullptr for all files.
+   * \param action: Whether this is a file open or save dialog.
+   * \return Indication of success.
+   */
+  GHOST_TSuccess showNativeFileDialog(const char *title,
+                                      const char *default_path,
+                                      const char *filter_glob,
+                                      GHOST_TFileDialogAction action) override;
+
+  /**
    * Handles a window event. Called by GHOST_WindowIOS window delegate
    * \param eventType: The type of window event.
    * \param window: The window on which the event occurred.

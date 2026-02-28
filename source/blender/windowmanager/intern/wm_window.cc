@@ -67,6 +67,7 @@
 #include "wm.hh"
 #include "wm_draw.hh"
 #include "wm_event_system.hh"
+#include "wm_event_types.hh"
 #include "wm_files.hh"
 #include "wm_window.hh"
 #include "wm_window_private.hh"
@@ -2012,6 +2013,75 @@ static bool ghost_event_proc(const GHOST_IEvent *ghost_event, GHOST_TUserDataPtr
       }
       break;
     }
+
+    case GHOST_kEventNativeFileDialogResult: {
+      const char *filepath = static_cast<const char *>(data);
+
+      /* Find the active fileselect handler on this window (or any window). */
+      wmEventHandler_Op *fileselect_handler = nullptr;
+      wmWindow *handler_win = nullptr;
+
+      for (wmWindow &search_win : wm->windows) {
+        for (wmEventHandler &handler_base : search_win.runtime->modalhandlers) {
+          if (handler_base.type == WM_HANDLER_TYPE_OP) {
+            wmEventHandler_Op *handler = reinterpret_cast<wmEventHandler_Op *>(&handler_base);
+            if (handler->is_fileselect && handler->op) {
+              fileselect_handler = handler;
+              handler_win = &search_win;
+              break;
+            }
+          }
+        }
+        if (fileselect_handler) {
+          break;
+        }
+      }
+
+      if (fileselect_handler && filepath && filepath[0] != '\0') {
+        /* Set the filepath on the operator's RNA properties. */
+        PropertyRNA *prop = RNA_struct_find_property(fileselect_handler->op->ptr, "filepath");
+        if (prop) {
+          RNA_property_string_set(fileselect_handler->op->ptr, prop, filepath);
+        }
+
+        /* Also set directory and filename if available. */
+        char dir[1024] = "";
+        char file[256] = "";
+        {
+          /* Extract directory and filename from the full path. */
+          const char *last_sep = strrchr(filepath, '/');
+          if (last_sep) {
+            size_t dir_len = (size_t)(last_sep - filepath + 1);
+            if (dir_len >= sizeof(dir)) {
+              dir_len = sizeof(dir) - 1;
+            }
+            memcpy(dir, filepath, dir_len);
+            dir[dir_len] = '\0';
+            STRNCPY(file, last_sep + 1);
+          }
+        }
+
+        PropertyRNA *prop_dir = RNA_struct_find_property(fileselect_handler->op->ptr,
+                                                          "directory");
+        if (prop_dir && dir[0] != '\0') {
+          RNA_property_string_set(fileselect_handler->op->ptr, prop_dir, dir);
+        }
+        PropertyRNA *prop_file = RNA_struct_find_property(fileselect_handler->op->ptr,
+                                                           "filename");
+        if (prop_file && file[0] != '\0') {
+          RNA_property_string_set(fileselect_handler->op->ptr, prop_file, file);
+        }
+
+        /* Fire the exec event — the existing handler teardown path will run the operator. */
+        WM_event_fileselect_event(wm, fileselect_handler->op, EVT_FILESELECT_EXEC);
+      }
+      else if (fileselect_handler) {
+        /* User cancelled — fire cancel event. */
+        WM_event_fileselect_event(wm, fileselect_handler->op, EVT_FILESELECT_EXTERNAL_CANCEL);
+      }
+      break;
+    }
+
     case GHOST_kEventDraggingDropDone: {
       const GHOST_TEventDragnDropData *ddd = static_cast<const GHOST_TEventDragnDropData *>(data);
 

@@ -108,6 +108,15 @@ extern GHOST_TSuccess GHOST_stopSecurityScopedFileAccess(const char *filepath)
   return system->stopSecurityScopedFileAccess(filepath);
 }
 
+extern GHOST_TSuccess GHOST_ShowNativeFileDialog(const char *title,
+                                                  const char *default_path,
+                                                  const char *filter_glob,
+                                                  GHOST_TFileDialogAction action)
+{
+  GHOST_ISystem *system = GHOST_ISystem::getSystem();
+  return system->showNativeFileDialog(title, default_path, filter_glob, action);
+}
+
 #endif
 
 GHOST_EventConsumerHandle GHOST_CreateEventConsumer(GHOST_EventCallbackProcPtr eventCallback,

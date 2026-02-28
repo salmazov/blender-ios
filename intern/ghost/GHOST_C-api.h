@@ -88,6 +88,19 @@ extern const char *GHOST_getKeyboardInput(GHOST_WindowHandle window_handle);
 extern GHOST_TSuccess GHOST_startSecurityScopedFileAccess(const char *filepath);
 extern GHOST_TSuccess GHOST_stopSecurityScopedFileAccess(const char *filepath);
 
+/**
+ * Show a native OS file open/save dialog.
+ * \param title: The title of the dialog.
+ * \param default_path: The default file path to start browsing from.
+ * \param filter_glob: Glob pattern filter (e.g. "*.blend"), or nullptr for all files.
+ * \param action: Whether this is a file open or save dialog.
+ * \return An indication of success.
+ */
+extern GHOST_TSuccess GHOST_ShowNativeFileDialog(const char *title,
+                                                  const char *default_path,
+                                                  const char *filter_glob,
+                                                  GHOST_TFileDialogAction action);
+
 #endif
 
 /**

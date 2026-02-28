@@ -110,6 +110,12 @@ enum GHOST_DialogOptions {
   GHOST_DialogError = (1 << 1),
 };
 
+/** Action type for native file dialogs. */
+enum GHOST_TFileDialogAction {
+  GHOST_kFileDialogOpen = 0,
+  GHOST_kFileDialogSave = 1,
+};
+
 /**
  * Static flag (relating to the back-ends support for features).
  *
@@ -184,6 +190,11 @@ enum GHOST_TCapabilityFlag {
    * Otherwise client-side-decorations should be used, see: `WITH_GHOST_CSD`.
    */
   GHOST_kCapabilityWindowDecorationServerSide = (1 << 14),
+  /**
+   * Support for native OS file open/save dialogs.
+   * When set, the system can present a native file picker instead of Blender's built-in browser.
+   */
+  GHOST_kCapabilityNativeFileDialog = (1 << 15),
 };
 
 /**
@@ -197,7 +208,8 @@ enum GHOST_TCapabilityFlag {
    GHOST_kCapabilityTrackpadPhysicalDirection | GHOST_kCapabilityWindowDecorationStyles | \
    GHOST_kCapabilityKeyboardHyperKey | GHOST_kCapabilityCursorRGBA | \
    GHOST_kCapabilityCursorGenerator | GHOST_kCapabilityMultiMonitorPlacement | \
-   GHOST_kCapabilityWindowPath | GHOST_kCapabilityWindowDecorationServerSide)
+   GHOST_kCapabilityWindowPath | GHOST_kCapabilityWindowDecorationServerSide | \
+   GHOST_kCapabilityNativeFileDialog)
 
 /* Xtilt and Ytilt represent how much the pen is tilted away from
  * vertically upright in either the X or Y direction, with X and Y the
@@ -383,6 +395,9 @@ enum GHOST_TEventType {
 
   GHOST_kEventOpenMainFile, /* Needed for Cocoa to open double-clicked .blend file at startup. */
   GHOST_kEventNativeResolutionChange, /* Needed for Cocoa when window moves to other display. */
+
+  /** Result from a native file dialog (iOS). Data is filepath string (or nullptr on cancel). */
+  GHOST_kEventNativeFileDialogResult,
 
   GHOST_kEventImeCompositionStart,
   GHOST_kEventImeComposition,

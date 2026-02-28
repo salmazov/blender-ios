@@ -2854,6 +2854,62 @@ static eHandlerActionFlag wm_handler_fileselect_do(bContext *C,
 
   switch (val) {
     case EVT_FILESELECT_FULL_OPEN: {
+#ifdef WITH_APPLE_CROSSPLATFORM
+      /* On iOS, use the native file picker instead of Blender's built-in file browser. */
+      {
+        GHOST_ISystem *ghost_system = GHOST_ISystem::getSystem();
+        if (ghost_system &&
+            (ghost_system->getCapabilities() & GHOST_kCapabilityNativeFileDialog))
+        {
+          /* Determine open vs save from operator's "check_existing" RNA property.
+           * This property defaults to true for FILE_SAVE actions. */
+          GHOST_TFileDialogAction dialog_action = GHOST_kFileDialogOpen;
+          PropertyRNA *prop_check = RNA_struct_find_property(handler->op->ptr, "check_existing");
+          if (prop_check && RNA_property_boolean_get(handler->op->ptr, prop_check)) {
+            dialog_action = GHOST_kFileDialogSave;
+          }
+
+          /* Get default path from operator's filepath or directory property. */
+          char default_path[1024] = "";
+          PropertyRNA *prop_filepath = RNA_struct_find_property(handler->op->ptr, "filepath");
+          if (prop_filepath) {
+            RNA_property_string_get(handler->op->ptr, prop_filepath, default_path);
+          }
+          if (default_path[0] == '\0') {
+            PropertyRNA *prop_dir = RNA_struct_find_property(handler->op->ptr, "directory");
+            if (prop_dir) {
+              RNA_property_string_get(handler->op->ptr, prop_dir, default_path);
+            }
+          }
+
+          /* Get filter_glob if available. */
+          char filter_glob[256] = "";
+          PropertyRNA *prop_glob = RNA_struct_find_property(handler->op->ptr, "filter_glob");
+          if (prop_glob) {
+            RNA_property_string_get(handler->op->ptr, prop_glob, filter_glob);
+          }
+
+          /* If no specific filter glob, try to infer from filter_blender bool. */
+          if (filter_glob[0] == '\0') {
+            PropertyRNA *prop_blend = RNA_struct_find_property(handler->op->ptr, "filter_blender");
+            if (prop_blend && RNA_property_boolean_get(handler->op->ptr, prop_blend)) {
+              STRNCPY(filter_glob, "*.blend");
+            }
+          }
+
+          if (ghost_system->showNativeFileDialog(IFACE_("Select File"),
+                                                  default_path[0] ? default_path : nullptr,
+                                                  filter_glob[0] ? filter_glob : nullptr,
+                                                  dialog_action) == GHOST_kSuccess)
+          {
+            action = WM_HANDLER_BREAK;
+            break;
+          }
+          /* If native dialog failed, fall through to built-in file browser. */
+        }
+      }
+#endif /* WITH_APPLE_CROSSPLATFORM */
+
       ScrArea *area = ED_screen_temp_space_open(
           C, IFACE_("Blender File View"), SPACE_FILE, U.filebrowser_display_type, true);
       if (!area) {

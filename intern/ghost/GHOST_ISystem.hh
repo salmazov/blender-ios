@@ -526,6 +526,24 @@ class GHOST_ISystem {
                                         GHOST_DialogOptions /*dialog_options*/) const = 0;
 
   /***************************************************************************************
+   * Native File Dialog.
+   ***************************************************************************************/
+
+  /**
+   * Show a native OS file open/save dialog.
+   *
+   * \param title: The title of the dialog.
+   * \param default_path: The default file path to start browsing from.
+   * \param filter_glob: Glob pattern filter (e.g. "*.blend"), or nullptr for all files.
+   * \param action: Whether this is a file open or save dialog.
+   * \return Success if the dialog was presented.
+   */
+  virtual GHOST_TSuccess showNativeFileDialog(const char * /*title*/,
+                                              const char * /*default_path*/,
+                                              const char * /*filter_glob*/,
+                                              GHOST_TFileDialogAction /*action*/) = 0;
+
+  /***************************************************************************************
    * Debugging
    ***************************************************************************************/
 
