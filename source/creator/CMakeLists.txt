@@ -433,6 +433,36 @@ if [ ! -d \"\$DEST/scripts/addons_core/cycles\" ]; then
   cp -f \"\$SRC_DIR/intern/cycles/blender/addon/\"*.py \"\$DEST/scripts/addons_core/cycles/\"
 fi
 
+# ── Cycles kernel sources (needed for Metal JIT compilation) ──────────
+if [ ! -d \"\$DEST/scripts/addons_core/cycles/source\" ]; then
+  echo \"Copying Cycles kernel sources for Metal...\"
+  CYCLES_SRC=\"\$SRC_DIR/intern/cycles\"
+  CYCLES_DST=\"\$DEST/scripts/addons_core/cycles\"
+
+  # Kernel headers and sources (entire kernel tree)
+  for kdir in bake bvh camera closure device/gpu device/metal film geom integrator light osl sample svm util; do
+    if [ -d \"\$CYCLES_SRC/kernel/\$kdir\" ]; then
+      mkdir -p \"\$CYCLES_DST/source/kernel/\$kdir\"
+      cp -f \"\$CYCLES_SRC/kernel/\$kdir/\"*.h \"\$CYCLES_DST/source/kernel/\$kdir/\" 2>/dev/null || true
+      cp -f \"\$CYCLES_SRC/kernel/\$kdir/\"*.metal \"\$CYCLES_DST/source/kernel/\$kdir/\" 2>/dev/null || true
+    fi
+  done
+  # Top-level kernel headers
+  cp -f \"\$CYCLES_SRC/kernel/\"*.h \"\$CYCLES_DST/source/kernel/\" 2>/dev/null || true
+
+  # Util headers (referenced by kernels)
+  if [ -d \"\$CYCLES_SRC/util\" ]; then
+    mkdir -p \"\$CYCLES_DST/source/util\"
+    cp -f \"\$CYCLES_SRC/util/\"*.h \"\$CYCLES_DST/source/util/\" 2>/dev/null || true
+  fi
+
+  # Cycles license files
+  if [ -d \"\$CYCLES_SRC/doc/license\" ]; then
+    mkdir -p \"\$CYCLES_DST/license\"
+    cp -f \"\$CYCLES_SRC/doc/license/\"* \"\$CYCLES_DST/license/\" 2>/dev/null || true
+  fi
+fi
+
 # ── Remove addons that require Python >= 3.12 (type alias syntax) ──
 if [ -d \"\$DEST/scripts/addons_core/bl_pkg\" ]; then
   echo \"Removing bl_pkg addon (requires Python 3.12+)...\"
@@ -440,12 +470,26 @@ if [ -d \"\$DEST/scripts/addons_core/bl_pkg\" ]; then
 fi
 
 # ── Datafiles: fonts, icons, colormanagement, studiolights ──────────
-for subdir in fonts icons colormanagement studiolights; do
+for subdir in fonts icons colormanagement studiolights cursors; do
   if [ -d \"\$SRC_DIR/release/datafiles/\$subdir\" ] && [ ! -d \"\$DEST/datafiles/\$subdir\" ]; then
     echo \"Copying datafiles/\$subdir...\"
     rsync -a \"\$SRC_DIR/release/datafiles/\$subdir/\" \"\$DEST/datafiles/\$subdir/\"
   fi
 done
+
+# ── Datafiles: startup.blend, preview scenes ────────────────────────
+for blend_file in startup.blend preview.blend preview_grease_pencil.blend; do
+  if [ -f \"\$SRC_DIR/release/datafiles/\$blend_file\" ] && [ ! -f \"\$DEST/datafiles/\$blend_file\" ]; then
+    echo \"Copying datafiles/\$blend_file...\"
+    cp -f \"\$SRC_DIR/release/datafiles/\$blend_file\" \"\$DEST/datafiles/\"
+  fi
+done
+
+# ── Extensions directory (system placeholder) ───────────────────────
+if [ -d \"\$SRC_DIR/release/extensions\" ] && [ ! -d \"\$DEST/extensions\" ]; then
+  echo \"Copying extensions directory...\"
+  rsync -a \"\$SRC_DIR/release/extensions/\" \"\$DEST/extensions/\"
+fi
 
 # ── Assets: bundled brushes, nodes, catalog ─────────────────────────
 if [ -d \"\$SRC_DIR/assets\" ] && [ ! -d \"\$DEST/datafiles/assets/brushes\" ]; then
