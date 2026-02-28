@@ -902,7 +902,9 @@ inline void PassBase<T>::draw(gpu::Batch *batch,
     return;
   }
   BLI_assert(batch);
-  BLI_assert(shader_);
+  if (UNLIKELY(!shader_)) {
+    return;
+  }
   draw_commands_buf_.append_draw(headers_,
                                  commands_,
                                  batch,
@@ -935,7 +937,9 @@ inline void PassBase<T>::draw_expand(gpu::Batch *batch,
   if (instance_len == 0 || vertex_len == 0 || primitive_len == 0) {
     return;
   }
-  BLI_assert(shader_);
+  if (UNLIKELY(!shader_)) {
+    return;
+  }
   draw_commands_buf_.append_draw(headers_,
                                  commands_,
                                  batch,
@@ -988,7 +992,9 @@ inline void PassBase<T>::draw_indirect(gpu::Batch *batch,
                                        StorageBuffer<DrawCommand, true> &indirect_buffer,
                                        ResourceIndex res_index)
 {
-  BLI_assert(shader_);
+  if (UNLIKELY(!shader_)) {
+    return;
+  }
   create_command(Type::DrawIndirect).draw_indirect = {batch, &indirect_buffer, res_index};
 }
 
@@ -1009,32 +1015,42 @@ inline void PassBase<T>::draw_procedural_indirect(
 
 template<class T> inline void PassBase<T>::dispatch(int group_len)
 {
-  BLI_assert(shader_);
+  if (UNLIKELY(!shader_)) {
+    return;
+  }
   create_command(Type::Dispatch).dispatch = {int3(group_len, 1, 1)};
 }
 
 template<class T> inline void PassBase<T>::dispatch(int2 group_len)
 {
-  BLI_assert(shader_);
+  if (UNLIKELY(!shader_)) {
+    return;
+  }
   create_command(Type::Dispatch).dispatch = {int3(group_len.x, group_len.y, 1)};
 }
 
 template<class T> inline void PassBase<T>::dispatch(int3 group_len)
 {
-  BLI_assert(shader_);
+  if (UNLIKELY(!shader_)) {
+    return;
+  }
   create_command(Type::Dispatch).dispatch = {group_len};
 }
 
 template<class T> inline void PassBase<T>::dispatch(int3 *group_len)
 {
-  BLI_assert(shader_);
+  if (UNLIKELY(!shader_)) {
+    return;
+  }
   create_command(Type::Dispatch).dispatch = {group_len};
 }
 
 template<class T>
 inline void PassBase<T>::dispatch(StorageBuffer<DispatchCommand> &indirect_buffer)
 {
-  BLI_assert(shader_);
+  if (UNLIKELY(!shader_)) {
+    return;
+  }
   create_command(Type::DispatchIndirect).dispatch_indirect = {&indirect_buffer};
 }
 

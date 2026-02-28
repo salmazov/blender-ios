@@ -172,6 +172,9 @@ static void standard_defines(Vector<StringRefNull> &sources)
       break;
     case GPU_BACKEND_METAL:
       sources.append("#define GPU_METAL\n");
+#ifdef WITH_APPLE_CROSSPLATFORM
+      sources.append("#define GPU_METAL_IOS\n");
+#endif
       break;
     case GPU_BACKEND_VULKAN:
       sources.append("#define GPU_VULKAN\n");
