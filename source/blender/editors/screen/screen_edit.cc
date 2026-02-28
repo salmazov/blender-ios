@@ -1769,6 +1769,11 @@ ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *area, const
 
     screen->state = SCREENNORMAL;
     screen->flag = oldscreen->flag;
+#ifdef WITH_APPLE_CROSSPLATFORM
+    /* SCREEN_FLOATING_OVERLAY is only meaningful for temporary fullscreen overlays.
+     * Never propagate it back to the restored normal screen. */
+    screen->flag &= ~SCREEN_FLOATING_OVERLAY;
+#endif
     screen->fullscreen_flag = oldscreen->fullscreen_flag;
 
     /* Find old area we may have swapped dummy space data to. It's swapped back here. */
