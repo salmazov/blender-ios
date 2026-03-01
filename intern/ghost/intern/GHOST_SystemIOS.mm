@@ -35,6 +35,40 @@
 #  define IOS_SYSTEM_LOG(...)
 #endif
 
+#pragma mark - Security-Scoped URL Storage
+
+/**
+ * Dictionary mapping file paths to their original security-scoped NSURLs.
+ * Used to maintain access to files/directories returned by UIDocumentPickerViewController.
+ * Keys: NSString (absolute path), Values: NSURL (the security-scoped URL from the picker).
+ */
+static NSMutableDictionary<NSString *, NSURL *> *s_securityScopedURLs = nil;
+
+static void storeSecurityScopedURL(NSURL *url)
+{
+  if (!s_securityScopedURLs) {
+    s_securityScopedURLs = [[NSMutableDictionary alloc] init];
+  }
+  NSString *path = url.path;
+  if (path) {
+    s_securityScopedURLs[path] = url;
+    /* Also store the parent directory URL for temp file creation during saves. */
+    NSURL *dirURL = [url URLByDeletingLastPathComponent];
+    if (dirURL && dirURL.path) {
+      s_securityScopedURLs[dirURL.path] = dirURL;
+    }
+  }
+}
+
+static NSURL *lookupSecurityScopedURL(const char *filepath)
+{
+  if (!s_securityScopedURLs || !filepath) {
+    return nil;
+  }
+  NSString *path = [NSString stringWithUTF8String:filepath];
+  return s_securityScopedURLs[path];
+}
+
 #pragma mark - Native File Dialog Delegate
 
 /**
@@ -57,6 +91,9 @@
 
     /* Start security-scoped access so Blender can read/write the file. */
     [url startAccessingSecurityScopedResource];
+
+    /* Store the original security-scoped URL for later access (e.g., saving). */
+    storeSecurityScopedURL(url);
 
     const char *path = [url.path UTF8String];
     const size_t pathLen = strlen(path);
@@ -816,17 +853,31 @@ const char *GHOST_SystemIOS::getKeyboardInput(GHOST_IWindow *window)
 
 GHOST_TSuccess GHOST_SystemIOS::startSecurityScopedFileAccess(const char *filepath)
 {
-  NSURL *url = [NSURL fileURLWithPath:[NSString stringWithUTF8String:filepath]];
+  /* First try to use a stored security-scoped URL from the file picker.
+   * Plain NSURLs created from path strings are NOT security-scoped and
+   * calling startAccessingSecurityScopedResource on them is a no-op. */
+  NSURL *url = lookupSecurityScopedURL(filepath);
+  if (!url) {
+    /* Also try the parent directory — Blender writes to temp files in the same dir. */
+    NSString *path = [NSString stringWithUTF8String:filepath];
+    NSString *parentPath = [path stringByDeletingLastPathComponent];
+    url = lookupSecurityScopedURL([parentPath UTF8String]);
+  }
+  if (!url) {
+    /* Fallback to a plain URL (works for paths within the sandbox). */
+    url = [NSURL fileURLWithPath:[NSString stringWithUTF8String:filepath]];
+  }
   BOOL success = [url startAccessingSecurityScopedResource];
-
   return success ? GHOST_kSuccess : GHOST_kFailure;
 }
 
 GHOST_TSuccess GHOST_SystemIOS::stopSecurityScopedFileAccess(const char *filepath)
 {
-  NSURL *url = [NSURL fileURLWithPath:[NSString stringWithUTF8String:filepath]];
+  NSURL *url = lookupSecurityScopedURL(filepath);
+  if (!url) {
+    url = [NSURL fileURLWithPath:[NSString stringWithUTF8String:filepath]];
+  }
   [url stopAccessingSecurityScopedResource];
-
   return GHOST_kSuccess;
 }
 
