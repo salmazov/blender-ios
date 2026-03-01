@@ -2130,12 +2130,11 @@ static bool wm_file_write(bContext *C,
 #ifdef WITH_APPLE_CROSSPLATFORM
   /* On iOS, start security-scoped access before writing.
    * Files picked via UIDocumentPickerViewController require security-scoped access
-   * for read/write, and the POSIX access() call used by BLI_file_is_writable does
-   * not reflect security-scoped permissions. */
+   * for read/write. */
   GHOST_ISystem *ghost_system = GHOST_ISystem::getSystem();
-  const bool has_security_scoped_access = ghost_system &&
-                                          ghost_system->startSecurityScopedFileAccess(filepath) ==
-                                              GHOST_kSuccess;
+  if (ghost_system) {
+    ghost_system->startSecurityScopedFileAccess(filepath);
+  }
 #endif
 
   /* Call pre-save callbacks before writing preview,
@@ -2150,10 +2149,12 @@ static bool wm_file_write(bContext *C,
     bool ok = true;
 
 #ifdef WITH_APPLE_CROSSPLATFORM
-    /* On iOS, skip the access()-based writable check when we have security-scoped access.
-     * The POSIX access() call does not honor iOS security-scoped resource permissions,
-     * but the actual open()/write() calls will succeed via the sandbox extension. */
-    if (!has_security_scoped_access && !BLI_file_is_writable(filepath)) {
+    /* On iOS, skip the POSIX access() writable check entirely.
+     * access() does not honor iOS sandbox extensions, security-scoped resources,
+     * or App Group / File Provider paths. The actual open()/write() calls in
+     * BLO_write_file will correctly respect sandbox permissions and report
+     * meaningful errors if writing truly fails. */
+    if (false) {
 #else
     if (!BLI_file_is_writable(filepath)) {
 #endif
