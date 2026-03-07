@@ -1978,8 +1978,16 @@ static bool BLO_write_file_impl(Main *mainvar,
 
   write_file_main_validate_pre(mainvar, reports);
 
+#ifdef WITH_APPLE_CROSSPLATFORM
+  /* On iOS, write directly to the target file instead of using a temp file + rename.
+   * Security-scoped URLs from UIDocumentPickerViewController grant access only to the
+   * specific file, not to its parent directory. Creating a new temp file (filepath@)
+   * in the same directory would fail with "Operation not permitted". */
+  STRNCPY(tempname, filepath);
+#else
   /* Open temporary file, so we preserve the original in case we crash. */
   SNPRINTF(tempname, "%s@", filepath);
+#endif
 
   if (ww.open(tempname) == false) {
     BKE_reportf(
@@ -2095,24 +2103,39 @@ static bool BLO_write_file_impl(Main *mainvar,
 
   if (err) {
     BKE_report(reports, RPT_ERROR, strerror(errno));
+#ifdef WITH_APPLE_CROSSPLATFORM
+    /* On iOS tempname == filepath (no temp file), so do NOT delete the user's actual file. */
+#else
     remove(tempname);
+#endif
 
     return false;
   }
 
   /* File save to temporary file was successful, now do reverse file history
    * (move `.blend1` -> `.blend2`, `.blend` -> `.blend1` .. etc). */
+#ifdef WITH_APPLE_CROSSPLATFORM
+  /* On iOS, skip version backups — security-scoped URLs don't grant access to create
+   * sibling files in the parent directory. */
+  (void)use_save_versions;
+#else
   if (use_save_versions) {
     if (!do_history(filepath, reports)) {
       BKE_report(reports, RPT_ERROR, "Version backup failed (file saved with @)");
       return false;
     }
   }
+#endif
 
+#ifdef WITH_APPLE_CROSSPLATFORM
+  /* On iOS we wrote directly to the target file — no rename needed. */
+  (void)0;
+#else
   if (BLI_rename_overwrite(tempname, filepath) != 0) {
     BKE_report(reports, RPT_ERROR, "Cannot change old file (file saved with @)");
     return false;
   }
+#endif
 
   write_file_main_validate_post(mainvar, reports);
   if (mainvar->is_global_main && !params->use_save_as_copy) {
