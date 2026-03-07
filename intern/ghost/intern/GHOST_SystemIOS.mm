@@ -937,20 +937,42 @@ GHOST_TSuccess GHOST_SystemIOS::showNativeFileDialog(const char *title,
       picker.allowsMultipleSelection = NO;
     }
     else {
-      /* For save, we use a move-to-service picker.
-       * The user picks a destination directory; we need a source URL. */
+      /* For save, use initForExportingURLs to show a proper "save to" dialog.
+       * iOS requires a source file to export — if the file exists at default_path, use it directly.
+       * Otherwise create a temporary placeholder file so the user can choose a destination.
+       * The placeholder will be overwritten by Blender's actual save operation. */
+      NSURL *sourceURL = nil;
+
       if (default_path && default_path[0] != '\0') {
-        NSURL *sourceURL = [NSURL fileURLWithPath:[NSString stringWithUTF8String:default_path]];
-        /* Check if source file exists — if so, export it. */
-        if ([[NSFileManager defaultManager] fileExistsAtPath:sourceURL.path]) {
-          picker = [[UIDocumentPickerViewController alloc] initForExportingURLs:@[ sourceURL ]];
+        NSString *pathStr = [NSString stringWithUTF8String:default_path];
+        BOOL isDir = NO;
+        if ([[NSFileManager defaultManager] fileExistsAtPath:pathStr isDirectory:&isDir] && !isDir)
+        {
+          sourceURL = [NSURL fileURLWithPath:pathStr];
         }
       }
-      /* Fallback: open a directory picker for save location. */
-      if (!picker) {
-        picker = [[UIDocumentPickerViewController alloc]
-            initForOpeningContentTypes:@[ UTTypeFolder ]];
-        picker.allowsMultipleSelection = NO;
+
+      if (!sourceURL) {
+        /* Create a temporary placeholder file.
+         * Derive the filename from default_path if possible, otherwise use "untitled.blend". */
+        NSString *filename = @"untitled.blend";
+        if (default_path && default_path[0] != '\0') {
+          NSString *pathStr = [NSString stringWithUTF8String:default_path];
+          NSString *lastComponent = [pathStr lastPathComponent];
+          if (lastComponent.length > 0 && [lastComponent containsString:@"."]) {
+            filename = lastComponent;
+          }
+        }
+
+        NSString *tempDir = NSTemporaryDirectory();
+        NSString *tempPath = [tempDir stringByAppendingPathComponent:filename];
+        /* Create an empty file as placeholder. */
+        [[NSFileManager defaultManager] createFileAtPath:tempPath contents:[NSData data] attributes:nil];
+        sourceURL = [NSURL fileURLWithPath:tempPath];
+      }
+
+      if (sourceURL) {
+        picker = [[UIDocumentPickerViewController alloc] initForExportingURLs:@[ sourceURL ]];
       }
     }
 
