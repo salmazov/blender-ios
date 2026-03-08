@@ -44,29 +44,36 @@
  */
 static NSMutableDictionary<NSString *, NSURL *> *s_securityScopedURLs = nil;
 
+/** Lock object for thread-safe access to s_securityScopedURLs. */
+static NSObject *s_securityScopedURLsLock = [[NSObject alloc] init];
+
 static void storeSecurityScopedURL(NSURL *url)
 {
-  if (!s_securityScopedURLs) {
-    s_securityScopedURLs = [[NSMutableDictionary alloc] init];
-  }
-  NSString *path = url.path;
-  if (path) {
-    s_securityScopedURLs[path] = url;
-    /* Also store the parent directory URL for temp file creation during saves. */
-    NSURL *dirURL = [url URLByDeletingLastPathComponent];
-    if (dirURL && dirURL.path) {
-      s_securityScopedURLs[dirURL.path] = dirURL;
+  @synchronized(s_securityScopedURLsLock) {
+    if (!s_securityScopedURLs) {
+      s_securityScopedURLs = [[NSMutableDictionary alloc] init];
+    }
+    NSString *path = url.path;
+    if (path) {
+      s_securityScopedURLs[path] = url;
+      /* Also store the parent directory URL for temp file creation during saves. */
+      NSURL *dirURL = [url URLByDeletingLastPathComponent];
+      if (dirURL && dirURL.path) {
+        s_securityScopedURLs[dirURL.path] = dirURL;
+      }
     }
   }
 }
 
 static NSURL *lookupSecurityScopedURL(const char *filepath)
 {
-  if (!s_securityScopedURLs || !filepath) {
-    return nil;
+  @synchronized(s_securityScopedURLsLock) {
+    if (!s_securityScopedURLs || !filepath) {
+      return nil;
+    }
+    NSString *path = [NSString stringWithUTF8String:filepath];
+    return s_securityScopedURLs[path];
   }
-  NSString *path = [NSString stringWithUTF8String:filepath];
-  return s_securityScopedURLs[path];
 }
 
 #pragma mark - Native File Dialog Delegate
@@ -1192,42 +1199,7 @@ bool GHOST_SystemIOS::handleOpenDocumentRequest(void *filepathStr)
   return YES;
 }
 
-/* None of this currently required for iOS */
-#if 0
-GHOST_TSuccess GHOST_SystemIOS::handleTabletEvent(void * /*eventPtr*/, short /*eventType*/)
-{
-  GHOST_WindowIOS *window = (GHOST_WindowIOS *)window_manager_->getActiveWindow();
-  if (!window)
-    return GHOST_kFailure;
-  
-  return GHOST_kSuccess;
-}
 
-bool GHOST_SystemIOS::handleTabletEvent(void * /*eventPtr*/)
-{
-  /* TODO: Handle events. */
-  GHOST_ASSERT(FALSE,"GHOST_SystemIOS::handleTabletEvent unsupported on iOS");
-  return true;
-}
-
-GHOST_TSuccess GHOST_SystemIOS::handleMouseEvent(void * /*eventPtr*/)
-{
-  /* TODO: Handle events (here or elsewhere).
-   * NOTE: "Touch" events already handled in other code paths above. */
-  GHOST_ASSERT(FALSE,"GHOST_SystemIOS::handleMouseEvent unsupported on iOS");
-  return GHOST_kSuccess;
-}
-
-#  include <Metal/Metal.h>
-bool frame_capture = false;
-extern id<MTLDevice> extern_device;
-GHOST_TSuccess GHOST_SystemIOS::handleKeyEvent(void * /*eventPtr*/)
-{
-  /* TODO: Handle events (here or elsewhere). */
-  GHOST_ASSERT(FALSE,"GHOST_SystemIOS::handleKeyEvent unsupported on iOS");
-  return GHOST_kSuccess;
-}
-#endif
 
 #pragma mark Clipboard get/set
 

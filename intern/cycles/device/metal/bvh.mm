@@ -54,13 +54,17 @@ struct BVHMetalBuildThrottler {
   BVHMetalBuildThrottler()
   {
     /* Set a conservative limit, but which will still only throttle in extreme cases. */
+    id<MTLDevice> mtlDevice = MTLCreateSystemDefaultDevice();
 #  ifdef WITH_APPLE_CROSSPLATFORM
-    /* TEMP: lets assume 1GB for now. */
-    safe_wired_limit = 1LL * 1024LL * 1024LL * 1024LL;
+    if (@available(iOS 16.0, *)) {
+      safe_wired_limit = [mtlDevice recommendedMaxWorkingSetSize] / 4;
+    }
+    else {
+      safe_wired_limit = 1LL * 1024LL * 1024LL * 1024LL;
+    }
 #  else
     /* The default device will always be the one that supports MetalRT if the machine supports it.
      */
-    id<MTLDevice> mtlDevice = MTLCreateSystemDefaultDevice();
     safe_wired_limit = [mtlDevice recommendedMaxWorkingSetSize] / 4;
 #  endif
     bvh_throttle_printf("safe_wired_limit = %zu\n", safe_wired_limit);

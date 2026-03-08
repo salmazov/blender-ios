@@ -221,8 +221,9 @@ void GHOST_ContextIOS::metalInit()
       s_sharedMetalCommandQueue = (MTLCommandQueue *)[device
           newCommandQueueWithMaxCommandBufferCount:GHOST_ContextIOS::max_command_buffer_count];
     }
-    /* Ensure active GHOSTContext retains a reference to the shared context. */
+    /* Ensure active GHOSTContext retains a reference to the shared queue. */
     [s_sharedMetalCommandQueue retain];
+    s_sharedCount++;
 
     // Create shaders for blit operation
     NSString *source = @R"msl(
@@ -308,6 +309,15 @@ void GHOST_ContextIOS::metalFree()
   if (m_metalRenderPipeline) {
     [m_metalRenderPipeline release];
     m_metalRenderPipeline = nil;
+  }
+
+  if (s_sharedMetalCommandQueue) {
+    [s_sharedMetalCommandQueue release];
+    s_sharedCount--;
+    if (s_sharedCount <= 0) {
+      s_sharedMetalCommandQueue = nil;
+      s_sharedCount = 0;
+    }
   }
 
   for (int i = 0; i < METAL_SWAPCHAIN_SIZE; i++) {

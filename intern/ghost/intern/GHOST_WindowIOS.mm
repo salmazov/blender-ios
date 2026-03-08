@@ -258,7 +258,7 @@ typedef struct UserInputEvent {
   UITextField *text_field;
   NSString *original_text;
   bool onscreen_keyboard_active;
-  const char *text_field_string;
+  char *text_field_string; /* Owned copy (via strdup), freed on reassign. */
   GHOST_KeyboardProperties current_keyboard_properties;
   bool external_keyboard_connected;
 
@@ -1271,8 +1271,9 @@ typedef struct UserInputEvent {
        */
       text_field.userInteractionEnabled = NO;
 
-      /* Save the input to a c-string */
-      text_field_string = [[text_field text] UTF8String];
+      /* Save the input to an owned c-string copy. */
+      free(text_field_string);
+      text_field_string = text_field.text ? strdup([text_field.text UTF8String]) : NULL;
 
       /* Delete the text field copy of the string */
       text_field.text = nil;
@@ -1289,8 +1290,9 @@ typedef struct UserInputEvent {
 
     /* Update text string if one exists */
     if (text_field.text && ![text_field.text isEqualToString:@""]) {
-      /* Save the input to a c-string */
-      text_field_string = [[text_field text] UTF8String];
+      /* Save the input to an owned c-string copy. */
+      free(text_field_string);
+      text_field_string = strdup([text_field.text UTF8String]);
     }
   }
   return text_field_string;

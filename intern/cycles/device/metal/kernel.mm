@@ -318,6 +318,10 @@ void ShaderCache::load_kernel(DeviceKernel device_kernel,
                                       int([mtlDevice maximumConcurrentCompilationTaskCount]) - 1);
       }
 #    endif
+#  else
+      /* iOS: No API to query max compiler threads, but Apple A-series/M-series chips
+       * handle 4 concurrent compilations well. */
+      max_mtlcompiler_threads = 4;
 #  endif
 
       metal_printf("Spawning %d Cycles kernel compilation threads", max_mtlcompiler_threads);

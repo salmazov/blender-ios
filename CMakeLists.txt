@@ -137,8 +137,8 @@ endif()
 # -----------------------------------------------------------------------------
 # Cross-platform build support for Apple platforms.
 if(APPLE)
-  # IOS_FIXME: TODO: Set to ios by default for this branch, but should be macos.
-  set(APPLE_TARGET_DEVICE ios CACHE STRING "Target build device for Apple platforms ('macos' or 'ios'). Default: macos")
+  # iPadOS is the primary target for this branch.
+  set(APPLE_TARGET_DEVICE ios CACHE STRING "Target build device for Apple platforms ('macos' or 'ios'). Default: ios")
   #set(APPLE_TARGET_DEVICE macos CACHE STRING "Target build device for Apple platforms ('macos' or 'ios'). Default: macos")
   mark_as_advanced(APPLE_TARGET_DEVICE)
 
