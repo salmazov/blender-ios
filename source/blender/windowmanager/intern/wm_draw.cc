@@ -1219,8 +1219,8 @@ static void wm_draw_window_onscreen(bContext *C, wmWindow *win, int view)
         /* Close button: circle with X near the top-right of the panel,
          * offset to avoid overlapping header bar and toolbar elements. */
         const float btn_radius = 14.0f * UI_SCALE_FAC;
-        const float btn_cx = panel_rect.xmax - 50.0f * UI_SCALE_FAC;
-        const float btn_cy = panel_rect.ymax - 200.0f * UI_SCALE_FAC;
+        const float btn_cx = panel_rect.xmax - 40.0f * UI_SCALE_FAC;
+        const float btn_cy = panel_rect.ymax - 150.0f * UI_SCALE_FAC;
 
         /* Filled dark circle background. */
         const uint pos = GPU_vertformat_attr_add(

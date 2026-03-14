@@ -4408,6 +4408,40 @@ void wm_event_do_handlers(bContext *C)
         }
 #endif
 
+#ifdef WITH_APPLE_CROSSPLATFORM
+        /* iOS Floating Overlay: intercept close-button clicks BEFORE area
+         * handlers, so the underlying area does not consume the event. */
+        if ((screen->flag & SCREEN_FLOATING_OVERLAY) &&
+            ISMOUSE_BUTTON(event->type) && event->val == KM_PRESS)
+        {
+          ED_screen_areas_iter (&win, screen, area) {
+            if (!ED_area_is_global(area)) {
+              const float btn_radius = 14.0f * UI_SCALE_FAC;
+              const float border_width = 1.0f * UI_SCALE_FAC;
+              const float btn_cx = float(area->totrct.xmax) + border_width - 40.0f * UI_SCALE_FAC;
+              const float btn_cy = float(area->totrct.ymax) + border_width - 150.0f * UI_SCALE_FAC;
+              const float dx = float(event->xy[0]) - btn_cx;
+              const float dy = float(event->xy[1]) - btn_cy;
+              /* Use a slightly larger hit area for easier touch targeting. */
+              if ((dx * dx + dy * dy) <= (btn_radius * 1.5f) * (btn_radius * 1.5f)) {
+                /* Hit the close button — close the floating overlay. */
+                for (ScrArea &area_iter : screen->areabase) {
+                  if (area_iter.full) {
+                    ED_screen_full_prevspace(C, &area_iter);
+                    action |= WM_HANDLER_BREAK;
+                    break;
+                  }
+                }
+              }
+              break;
+            }
+          }
+        }
+        if ((action & WM_HANDLER_BREAK) != 0) {
+          /* Close button was hit — skip area processing. */
+        }
+        else
+#endif
         ED_screen_areas_iter (&win, screen, area) {
           /* After restoring a screen from SCREENMAXIMIZED we have to wait
            * with the screen handling till the region coordinates are updated. */
@@ -4450,46 +4484,20 @@ void wm_event_do_handlers(bContext *C)
         }
 
 #ifdef WITH_APPLE_CROSSPLATFORM
-        /* iOS Floating Overlay: click outside the floating panel or on the
-         * close button dismisses it. */
+        /* iOS Floating Overlay: close when clicking outside all areas
+         * (on the dimmed background). Close-button hit is handled above,
+         * before the area handler loop. */
         if ((action & WM_HANDLER_BREAK) == 0 && (screen->flag & SCREEN_FLOATING_OVERLAY) &&
             ISMOUSE_BUTTON(event->type) && event->val == KM_PRESS)
         {
-          bool should_close = false;
-
-          /* Check if click hit the close button (top-right corner of panel). */
+          bool inside_any_area = false;
           ED_screen_areas_iter (&win, screen, area) {
-            if (!ED_area_is_global(area)) {
-              const float btn_radius = 14.0f * UI_SCALE_FAC;
-              const float border_width = 1.0f * UI_SCALE_FAC;
-              const float btn_cx = float(area->totrct.xmax) + border_width - 50.0f * UI_SCALE_FAC;
-              const float btn_cy = float(area->totrct.ymax) + border_width - 200.0f * UI_SCALE_FAC;
-              const float dx = float(event->xy[0]) - btn_cx;
-              const float dy = float(event->xy[1]) - btn_cy;
-              /* Use a slightly larger hit area for easier touch targeting. */
-              if ((dx * dx + dy * dy) <= (btn_radius * 1.5f) * (btn_radius * 1.5f)) {
-                should_close = true;
-              }
+            if (wm_event_inside_rect(event, &area->totrct)) {
+              inside_any_area = true;
               break;
             }
           }
-
-          /* Also close when clicking outside all areas (on the dimmed background). */
-          if (!should_close) {
-            bool inside_any_area = false;
-            ED_screen_areas_iter (&win, screen, area) {
-              if (wm_event_inside_rect(event, &area->totrct)) {
-                inside_any_area = true;
-                break;
-              }
-            }
-            if (!inside_any_area) {
-              should_close = true;
-            }
-          }
-
-          if (should_close) {
-            /* Find the fullscreen area and trigger "Back to Previous". */
+          if (!inside_any_area) {
             for (ScrArea &area_iter : screen->areabase) {
               if (area_iter.full) {
                 ED_screen_full_prevspace(C, &area_iter);
