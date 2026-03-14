@@ -3791,7 +3791,7 @@ static void textedit_end(bContext *C, Button *but, HandleButtonData *data)
    * any other editing you can do with an iOS keyboard
    */
   if (but) {
-    ui_textedit_string_set(but, but->active->text_edit, keyboard_string);
+    textedit_string_set(but, but->active->text_edit, keyboard_string);
   }
 #endif
 
@@ -4267,7 +4267,7 @@ static int do_but_textedit(
           const char *keyboard_string = ghost_sys_evt->getKeyboardInput(
               static_cast<GHOST_IWindow *>(win->runtime->ghostwin));
           if (but->active->text_edit.edit_string) {
-            ui_textedit_string_set(but, but->active->text_edit, keyboard_string);
+            textedit_string_set(but, but->active->text_edit, keyboard_string);
           }
           changed = true;
           update = true;

@@ -6,6 +6,14 @@
 
 #include <OpenImageIO/ustring.h>
 
+/* OIIO 3.0 (used on iOS) uses a versioned namespace (OpenImageIO_v3_0) without
+ * providing the unversioned "OpenImageIO" alias.  OIIO 3.1+ switched to
+ * `namespace OpenImageIO { inline namespace v3_1 { … } }` so the plain name
+ * exists.  Provide the alias when it is missing. */
+#if OIIO_VERSION_MAJOR == 3 && OIIO_VERSION_MINOR < 1
+namespace OpenImageIO = OIIO_NAMESPACE;
+#endif
+
 #include "BLI_fixed_string.hh"
 #include "BLI_hash.hh"
 #include "BLI_string_ref.hh"

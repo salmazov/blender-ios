@@ -988,6 +988,7 @@ bool PyC_Err_CaptureSystemExitCode()
   }
 
   /* Get exit code and put back exception. */
+#if PY_VERSION_HEX >= 0x030C0000 /* Python 3.12+ */
   PyObject *exc_obj = PyErr_GetRaisedException();
   PyObject *code_obj = ((PySystemExitObject *)exc_obj)->code;
   g_system_exit_code = 0;
@@ -995,6 +996,19 @@ bool PyC_Err_CaptureSystemExitCode()
     g_system_exit_code = PyLong_Check(code_obj) ? int(PyLong_AsLong(code_obj)) : 1;
   }
   PyErr_SetRaisedException(exc_obj);
+#else
+  PyObject *exc_type, *exc_value, *exc_tb;
+  PyErr_Fetch(&exc_type, &exc_value, &exc_tb);
+  PyErr_NormalizeException(&exc_type, &exc_value, &exc_tb);
+  g_system_exit_code = 0;
+  if (exc_value) {
+    PyObject *code_obj = ((PySystemExitObject *)exc_value)->code;
+    if (code_obj && code_obj != Py_None) {
+      g_system_exit_code = PyLong_Check(code_obj) ? int(PyLong_AsLong(code_obj)) : 1;
+    }
+  }
+  PyErr_Restore(exc_type, exc_value, exc_tb);
+#endif
   return true;
 }
 
