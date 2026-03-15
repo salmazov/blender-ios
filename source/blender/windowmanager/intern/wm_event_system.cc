@@ -5653,7 +5653,7 @@ static wmEventType wm_event_type_from_ghost_key(GHOST_TKey key)
     case GHOST_kKeyUnknown:
       return EVT_UNKNOWNKEY;
 
-#if (WITH_APPLE_CROSSPLATFORM)
+#ifdef WITH_APPLE_CROSSPLATFORM
       /* IOS_FIXME - Event to get multi text edit events from iOS into Blender */
     case GHOST_kKeyTextEdit:
       return EVT_TEXTEDIT;

@@ -609,7 +609,7 @@ enum GHOST_TKey {
   GHOST_kKeyF23,
   GHOST_kKeyF24,
 
-#if (WITH_APPLE_CROSSPLATFORM)
+#ifdef WITH_APPLE_CROSSPLATFORM
   GHOST_kKeyTextEdit,
 #endif
 
@@ -1438,7 +1438,7 @@ enum GHOST_NDOF_ButtonT {
   GHOST_NDOF_BUTTON_USER = 0x10000
 };
 
-#if (WITH_APPLE_CROSSPLATFORM)
+#ifdef WITH_APPLE_CROSSPLATFORM
 
 /** How to setup an onscreen keyboard */
 struct GHOST_KeyboardProperties {

@@ -180,7 +180,7 @@ class FrameBuffer {
     if (!equals_v4v4_int(viewport_[0], viewport)) {
       copy_v4_v4_int(viewport_[0], viewport);
       dirty_state_ = true;
-#if (WITH_APPLE_CROSSPLATFORM)
+#ifdef WITH_APPLE_CROSSPLATFORM
       /* IOS_FIXME - selecting 2D Full Canvas window causes a viewport with a -1 origin.
        Workaround for now. */
       if (viewport_[0][0] < 0 || viewport_[0][1] < 0) {

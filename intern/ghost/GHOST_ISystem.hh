@@ -453,7 +453,7 @@ class GHOST_ISystem {
    */
   virtual void putClipboard(const char *buffer, bool selection) const = 0;
 
-#if (WITH_APPLE_CROSSPLATFORM)
+#ifdef WITH_APPLE_CROSSPLATFORM
   virtual GHOST_TSuccess popupOnScreenKeyboard(
       GHOST_IWindow *window, const GHOST_KeyboardProperties &keyboard_properties) = 0;
 

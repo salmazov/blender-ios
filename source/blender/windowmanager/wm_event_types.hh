@@ -220,7 +220,7 @@ enum wmEventType : int16_t {
   EVT_LEFTBRACKETKEY = 0x00eb,  /* 235 */
   EVT_RIGHTBRACKETKEY = 0x00ec, /* 236 */
 
-#if (WITH_APPLE_CROSSPLATFORM)
+#ifdef WITH_APPLE_CROSSPLATFORM
   /* IOS_FIXME - Hack(?) to get text edit events into system */
   EVT_TEXTEDIT = 0x0fe, /* 254 */
 #endif

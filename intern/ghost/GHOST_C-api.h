@@ -76,7 +76,7 @@ extern void GHOST_ShowMessageBox(GHOST_SystemHandle systemhandle,
                                  const char *link,
                                  GHOST_DialogOptions dialog_options);
 
-#if (WITH_APPLE_CROSSPLATFORM)
+#ifdef WITH_APPLE_CROSSPLATFORM
 
 extern void GHOST_popupOnScreenKeyboard(GHOST_WindowHandle window_handle,
                                         const GHOST_KeyboardProperties &keyboard_properties);

@@ -70,7 +70,7 @@ void GHOST_ShowMessageBox(GHOST_SystemHandle systemhandle,
   system->showMessageBox(title, message, help_label, continue_label, link, dialog_options);
 }
 
-#if (WITH_APPLE_CROSSPLATFORM)
+#ifdef WITH_APPLE_CROSSPLATFORM
 void GHOST_popupOnScreenKeyboard(GHOST_WindowHandle windowhandle,
                                  const GHOST_KeyboardProperties &keyboard_properties)
 {

@@ -91,7 +91,7 @@ class GHOST_SystemHeadless : public GHOST_System {
   void putClipboard(const char * /*buffer*/, bool /*selection*/) const override
   { /* nop */
   }
-#if (WITH_APPLE_CROSSPLATFORM)
+#ifdef WITH_APPLE_CROSSPLATFORM
   GHOST_TSuccess popupOnScreenKeyboard(
       GHOST_IWindow * /*window*/,
       const GHOST_KeyboardProperties & /*keyboard_properties*/) override

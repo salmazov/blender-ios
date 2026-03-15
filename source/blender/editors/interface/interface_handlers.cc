@@ -3715,7 +3715,7 @@ static void textedit_begin(bContext *C, Button *but, HandleButtonData *data)
     but_ensure_in_view(C, data->region, but);
   }
 
-#if (WITH_APPLE_CROSSPLATFORM)
+#ifdef WITH_APPLE_CROSSPLATFORM
   /*
    IOS_FIXME - this seems a long winded way to generate window coords,
    there must be a better way
@@ -3776,7 +3776,7 @@ static void textedit_end(bContext *C, Button *but, HandleButtonData *data)
 
   ED_workspace_status_text(C, nullptr);
 
-#if (WITH_APPLE_CROSSPLATFORM)
+#ifdef WITH_APPLE_CROSSPLATFORM
   /* Hide keyboard and retrieve keyboard text */
   GHOST_ISystem *ghost_sys_end = GHOST_ISystem::getSystem();
   ghost_sys_end->hideOnScreenKeyboard(
@@ -4260,7 +4260,7 @@ static int do_but_textedit(
         }
         break;
       }
-#if (WITH_APPLE_CROSSPLATFORM)
+#ifdef WITH_APPLE_CROSSPLATFORM
       case EVT_TEXTEDIT: {
         if (but) {
           GHOST_ISystem *ghost_sys_evt = GHOST_ISystem::getSystem();
