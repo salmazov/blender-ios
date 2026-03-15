@@ -449,7 +449,8 @@ static std::optional<ProcessedPythonCompatibleFormat> preprocess_python_compatib
   return result;
 }
 
-static void format_with_fmt(const fmt::runtime_format_string<> format,
+template<typename FormatStr>
+static void format_with_fmt(const FormatStr format,
                             const GVArray &input,
                             const GVArray *widths,
                             const GVArray *precisions,

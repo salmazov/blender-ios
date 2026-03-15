@@ -6,7 +6,7 @@
 #include "node_geometry_util.hh"
 
 #include <fmt/format.h>
-#include <fmt/ranges.h>
+#include "BLI_fmt.hh"
 
 namespace blender::nodes::node_geo_remove_attribute_cc {
 

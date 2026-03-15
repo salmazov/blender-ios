@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <fmt/format.h>
-#include <fmt/ranges.h>
+#include "BLI_fmt.hh"
 
 #include "BKE_node_socket_value.hh"
 

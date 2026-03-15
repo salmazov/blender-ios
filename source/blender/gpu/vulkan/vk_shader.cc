@@ -27,7 +27,7 @@
 #include "CLG_log.h"
 
 #include <fmt/format.h>
-#include <fmt/ranges.h>
+#include "BLI_fmt.hh"
 
 namespace blender {
 

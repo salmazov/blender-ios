@@ -7,7 +7,7 @@
  */
 
 #include <fmt/format.h>
-#include <fmt/ranges.h>
+#include "BLI_fmt.hh"
 #include <sstream>
 
 #include "CLG_log.h"
