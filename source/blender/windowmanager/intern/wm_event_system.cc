@@ -4418,7 +4418,7 @@ void wm_event_do_handlers(bContext *C)
             if (!ED_area_is_global(area)) {
               const float btn_radius = 14.0f * UI_SCALE_FAC;
               const float border_width = 1.0f * UI_SCALE_FAC;
-              const float btn_cx = float(area->totrct.xmax) + border_width - 40.0f * UI_SCALE_FAC;
+              const float btn_cx = float(area->totrct.xmax) + border_width - 20.0f * UI_SCALE_FAC;
               const float btn_cy = float(area->totrct.ymax) + border_width - 150.0f * UI_SCALE_FAC;
               const float dx = float(event->xy[0]) - btn_cx;
               const float dy = float(event->xy[1]) - btn_cy;

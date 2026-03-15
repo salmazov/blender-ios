@@ -1612,6 +1612,13 @@ void blo_do_versions_userdef(UserDef *userdef)
     userdef->border_width = 2;
   }
 
+#ifdef WITH_APPLE_CROSSPLATFORM
+  /* iPad touch: widen area borders for easier finger resizing (min 4px). */
+  if (userdef->border_width < 4) {
+    userdef->border_width = 4;
+  }
+#endif
+
   if (!USER_VERSION_ATLEAST(405, 10)) {
     static const Map<std::string, std::string> keymap_renames = {
         {"SequencerCommon", "Video Sequence Editor"},

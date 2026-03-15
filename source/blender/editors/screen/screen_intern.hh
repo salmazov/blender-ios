@@ -72,7 +72,12 @@ enum class AreaDockTarget {
 /**
  * Expanded interaction influence of area borders.
  */
-#define BORDERPADDING (U.border_width * UI_SCALE_FAC + 3.0f * UI_SCALE_FAC)
+#ifdef WITH_APPLE_CROSSPLATFORM
+/* Wider touch target for finger interaction on iOS. */
+#  define BORDERPADDING (U.border_width * UI_SCALE_FAC + 8.0f * UI_SCALE_FAC)
+#else
+#  define BORDERPADDING (U.border_width * UI_SCALE_FAC + 3.0f * UI_SCALE_FAC)
+#endif
 
 /**
  * Number of pixels of the area border corner radius.
