@@ -73,7 +73,7 @@ typedef struct UserInputEvent {
 
   void add_event(EventTypes event_type)
   {
-    GHOST_ASSERT(num_events <= sizeof(event_list) / sizeof(*event_list),
+    GHOST_ASSERT(num_events < sizeof(event_list) / sizeof(*event_list),
                  "add_event: Failed to add event");
     event_list[num_events] = event_type;
     num_events++;
@@ -1333,10 +1333,11 @@ typedef struct UserInputEvent {
   _view.colorPixelFormat = MTLPixelFormatBGRA8Unorm;
   _view.autoResizeDrawable = YES;
   _view.contentMode = UIViewContentModeScaleToFill;
-  _view.contentScaleFactor = [[UIScreen mainScreen] scale];
-  /* Set the refresh rate to the screen's maximum. There may be some value in capping
-   * this value to preserve battery life (60fps seems to work well). */
-  _view.preferredFramesPerSecond = [UIScreen mainScreen].maximumFramesPerSecond;
+  _view.contentScaleFactor = self.view.window.windowScene.screen.scale ?: UITraitCollection.currentTraitCollection.displayScale;
+  /* Use UIUpdateLink for proper ProMotion frame pacing (iOS 18+). */
+  UIUpdateLink *updateLink = [UIUpdateLink updateLinkForView:_view actionTarget:self selector:@selector(updateLinkDidFire:)];
+  updateLink.requiresContinuousUpdates = YES;
+  [updateLink setEnabled:YES];
   _renderer = [[GHOST_IOSMetalRenderer alloc] initWithMetalKitView:_view];
   if (!_renderer) {
     NSLog(@"Renderer initialization failed");
@@ -1356,6 +1357,12 @@ typedef struct UserInputEvent {
 {
   /* Make the Home Indicator (the bottom-center white navigation bar) auto-hide when possible. */
   return YES;
+}
+
+- (void)updateLinkDidFire:(UIUpdateLink *)link
+{
+  /* UIUpdateLink callback — triggers MTKView redraw at optimal frame rate. */
+  [_view setNeedsDisplay];
 }
 
 @end
@@ -1398,7 +1405,8 @@ GHOST_WindowIOS::GHOST_WindowIOS(GHOST_SystemIOS *systemIos,
     ghost_rootWindow = [[GHOSTUIWindow alloc] init];
     [ghost_rootWindow retain];
     /* Ensure fullscreen. */
-    CGRect rect = [UIScreen mainScreen].bounds;
+    UIWindowScene *windowScene = (UIWindowScene *)[UIApplication sharedApplication].connectedScenes.allObjects.firstObject;
+    CGRect rect = windowScene ? windowScene.screen.bounds : CGRectMake(0, 0, 1024, 768);
     rootWindow.frame = rect;
   }
   else {
@@ -1615,7 +1623,7 @@ void GHOST_WindowIOS::getWindowBounds(GHOST_Rect &bounds) const
   GHOST_ASSERT(getValid(), "GHOST_WindowIOS::getWindowBounds(): window invalid");
 
   CGRect screenRect = rootWindow.frame;
-  CGFloat scale = [UIScreen mainScreen].scale;
+  CGFloat scale = rootWindow.screen.scale;
   CGFloat screenWidth = screenRect.size.width * scale;
   CGFloat screenHeight = screenRect.size.height * scale;
 
@@ -1630,7 +1638,7 @@ void GHOST_WindowIOS::getClientBounds(GHOST_Rect &bounds) const
   GHOST_ASSERT(getValid(), "GHOST_WindowIOS::getWindowBounds(): window invalid");
 
   CGRect screenRect = rootWindow.frame;
-  CGFloat scale = [UIScreen mainScreen].scale;
+  CGFloat scale = rootWindow.screen.scale;
   CGFloat screenWidth = screenRect.size.width * scale;
   CGFloat screenHeight = screenRect.size.height * scale;
 
@@ -1830,7 +1838,13 @@ GHOST_TSuccess GHOST_WindowIOS::setWindowCustomCursorShape(const uint8_t * /*bit
 
 uint16_t GHOST_WindowIOS::getDPIHint()
 {
-  return 288;
+  /* Compute DPI from the screen's native scale. The base PPI for @1x is 163 (iPhone)
+   * or 132 (iPad). Use 163 as a reasonable default that works well for both. */
+  CGFloat scale = rootWindow.screen.scale;
+  if (scale <= 0) {
+    scale = 2.0;
+  }
+  return (uint16_t)(163.0 * scale);
 }
 
 GHOST_TSuccess GHOST_WindowIOS::popupOnscreenKeyboard(
@@ -1878,7 +1892,7 @@ CGSize GHOST_WindowIOS::getNativeWindowSize()
 
 float GHOST_WindowIOS::getWindowScaleFactor()
 {
-  return [[UIScreen mainScreen] scale];
+  return rootWindow.screen.scale;
 }
 
 /* Indicate that we want this window to be the next active one. */
@@ -1946,7 +1960,14 @@ void GHOST_WindowIOS::resignKeyWindow()
   /* Disable the drawInMTKView() calls for this window. */
   m_metalView.paused = YES;
   /* Wait until any outstanding presents in flight are done. */
-  while (m_uiview_controller.beingPresented) {
+  if (m_uiview_controller.beingPresented) {
+    /* Use a run loop spin instead of a busy-wait to avoid blocking the main thread. */
+    NSDate *timeout = [NSDate dateWithTimeIntervalSinceNow:1.0];
+    while (m_uiview_controller.beingPresented &&
+           [[NSDate date] compare:timeout] == NSOrderedAscending) {
+      [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
+                              beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+    }
   }
   IOS_WINDOW_LOG(@"Resigning Key Window: (ui_View)%p (mtkView)%p con(%p) (win=%p)",
                  m_uiview,

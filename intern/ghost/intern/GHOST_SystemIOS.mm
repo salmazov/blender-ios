@@ -572,15 +572,30 @@ uint8_t GHOST_SystemIOS::getNumDisplays() const
 
 void GHOST_SystemIOS::getMainDisplayDimensions(uint32_t &width, uint32_t &height) const
 {
-  CGRect screenRect = [[UIScreen mainScreen] bounds];
-  CGFloat scaling_fac = [UIScreen mainScreen].scale;
+  /* Use the window scene's screen instead of deprecated [UIScreen mainScreen]. */
+  UIWindow *keyWindow = nil;
+  for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
+    if ([scene isKindOfClass:[UIWindowScene class]]) {
+      UIWindowScene *windowScene = (UIWindowScene *)scene;
+      for (UIWindow *w in windowScene.windows) {
+        if (w.isKeyWindow) {
+          keyWindow = w;
+          break;
+        }
+      }
+      if (keyWindow) break;
+    }
+  }
+  UIScreen *screen = keyWindow.windowScene.screen ?: [UIScreen mainScreen];
+  CGRect screenRect = screen.bounds;
+  CGFloat scaling_fac = screen.scale;
   CGFloat screenWidth = screenRect.size.width * scaling_fac;
   CGFloat screenHeight = screenRect.size.height * scaling_fac;
 
   if (screenWidth <= 0 || screenHeight <= 0) {
-    GHOST_ASSERT(false, "Negative or null display dimmensions");
-    screenWidth = 2532;
-    screenHeight = 1170;
+    GHOST_ASSERT(false, "Negative or null display dimensions");
+    screenWidth = 2732;
+    screenHeight = 2048;
   }
 
   width = screenWidth;
@@ -608,8 +623,14 @@ GHOST_IWindow *GHOST_SystemIOS::createWindow(const char *title,
   GHOST_IWindow *window = NULL;
   @autoreleasepool {
 
-    /* Create window at native size. */
-    CGRect bounds = [[UIScreen mainScreen] bounds];
+    /* Create window at native size from the active window scene. */
+    CGRect bounds = CGRectMake(0, 0, 1024, 768);
+    for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
+      if ([scene isKindOfClass:[UIWindowScene class]]) {
+        bounds = ((UIWindowScene *)scene).screen.bounds;
+        break;
+      }
+    }
 
     window = (GHOST_IWindow *)new GHOST_WindowIOS(this,
                                                   title,
@@ -815,6 +836,7 @@ GHOST_TSuccess GHOST_SystemIOS::handleWindowEvent(GHOST_TEventType eventType,
       if (native_pixel_) {
         pushEvent(std::make_unique<GHOST_Event>(getMilliSeconds(), GHOST_kEventNativeResolutionChange, window));
       }
+      break;
 
     default:
       return GHOST_kFailure;

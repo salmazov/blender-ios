@@ -22,9 +22,13 @@
 bool GHOST_ContextIOS::current_drawable_presented = false;
 id<CAMetalDrawable> GHOST_ContextIOS::prevDrawable = nil;
 
-static void ghost_fatal_error_dialog(const char * /*msg*/)
+static void ghost_fatal_error_dialog(const char *msg)
 {
-  exit(1);
+  /* On iOS, apps must not call exit(). Log the error instead. */
+  NSLog(@"GHOST fatal error: %s", msg);
+  @throw [NSException exceptionWithName:@"GHOSTFatalError"
+                                reason:[NSString stringWithUTF8String:msg]
+                              userInfo:nil];
 }
 
 MTLCommandQueue *GHOST_ContextIOS::s_sharedMetalCommandQueue = nil;
@@ -56,22 +60,13 @@ GHOST_ContextIOS::GHOST_ContextIOS(const GHOST_ContextParams &context_params,
     /* Initialize Metal device (Using system default) */
     id<MTLDevice> metalDevice = MTLCreateSystemDefaultDevice();
 
-    CGRect screenRect = [[UIScreen mainScreen] bounds];
+    /* Get screen size from the window scene if available, otherwise use a reasonable default. */
+    UIWindowScene *windowScene = (UIWindowScene *)[UIApplication sharedApplication].connectedScenes.allObjects.firstObject;
+    CGRect screenRect = windowScene ? windowScene.screen.bounds : CGRectMake(0, 0, 1024, 768);
     CGFloat screenWidth = screenRect.size.width;
     CGFloat screenHeight = screenRect.size.height;
-    if (screenWidth <= 0 || screenHeight <= 0) {
-      /* TODO: Avoid using default resolution, this path should however not be hit. */
-      screenWidth = 2532;
-      screenHeight = 1170;
-    }
 
-    GHOST_ASSERT(screenWidth > 0 && screenHeight > 0, "Negative or null display dimmensions");
-
-    if (screenWidth <= 0) {
-      /* TODO: Avoid using default resolution, this path should however not be hit. */
-      screenWidth = 2532;
-      screenHeight = 1170;
-    }
+    GHOST_ASSERT(screenWidth > 0 && screenHeight > 0, "Negative or null display dimensions");
 
     /* Create own device */
     m_metalView = [[MTKView alloc] initWithFrame:CGRectMake(0, 0, screenWidth, screenHeight)];
@@ -335,8 +330,9 @@ void GHOST_ContextIOS::metalInitFramebuffer()
 
 void GHOST_ContextIOS::metalUpdateFramebuffer()
 {
-  CGRect screenRect = [[UIScreen mainScreen] bounds];
-  CGFloat scaling_fac = [UIScreen mainScreen].scale;
+  UIScreen *screen = m_metalView.window.windowScene.screen ?: [UIScreen mainScreen];
+  CGRect screenRect = screen.bounds;
+  CGFloat scaling_fac = screen.scale;
   CGFloat screenWidth = screenRect.size.width;
   CGFloat screenHeight = screenRect.size.height;
   size_t width = screenWidth * scaling_fac;

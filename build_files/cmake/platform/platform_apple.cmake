@@ -42,6 +42,15 @@ if(WITH_APPLE_CROSSPLATFORM)
   #       (Set DPXR_ENABLE_METAL_SUPPORT=ON in usd.cmake for WITH_APPLE_CROSSPLATFORM platform)
   set(WITH_HYDRA  OFF CACHE BOOL "Auto disabled due to lack of HgI/Hydra Storm for Metal on iOS" FORCE)
   set(WITH_CYCLES_OSL OFF CACHE BOOL "Support for build time compilation of OSL Shaders not supported yet on iOS" FORCE)
+  set(WITH_XR_OPENXR OFF CACHE BOOL ${NO_PLATFORM_SUPPORT_MSG} FORCE)
+  set(WITH_RUBBERBAND OFF CACHE BOOL ${NO_PLATFORM_SUPPORT_MSG} FORCE)
+  set(WITH_JACK OFF CACHE BOOL ${NO_PLATFORM_SUPPORT_MSG} FORCE)
+  set(WITH_OPENAL OFF CACHE BOOL ${NO_PLATFORM_SUPPORT_MSG} FORCE)
+  set(WITH_CODEC_SNDFILE OFF CACHE BOOL ${NO_PLATFORM_SUPPORT_MSG} FORCE)
+  set(WITH_OPENCOLLADA OFF CACHE BOOL ${NO_PLATFORM_SUPPORT_MSG} FORCE)
+  set(WITH_OPENMP OFF CACHE BOOL ${NO_PLATFORM_SUPPORT_MSG} FORCE)
+  set(WITH_HARU OFF CACHE BOOL ${NO_PLATFORM_SUPPORT_MSG} FORCE)
+  set(WITH_BLENDER_THUMBNAILER OFF CACHE BOOL ${NO_PLATFORM_SUPPORT_MSG} FORCE)
 
   # --- Cross compile host tools ----
 
@@ -207,9 +216,14 @@ else()
   # When building for iOS we use the MacOS version of Python from the macos libs dir
   set(CROSSCOMPILE_HOST_LIBDIR "${CMAKE_SOURCE_DIR}/lib/macos_arm64")
   if(NOT PYTHON_VERSION)
-	# IOS_FIXME: This is not great why is PYTHON_VERSION not defined here?
-	message("WARNING Manually defining Python Version to 3.11 for iOS build")
-	set(PYTHON_EXECUTABLE "${CROSSCOMPILE_HOST_LIBDIR}/python/bin/python3.11")
+	# Auto-detect host Python version from macOS libs
+	file(GLOB _host_python_bin "${CROSSCOMPILE_HOST_LIBDIR}/python/bin/python3.*")
+	if(_host_python_bin)
+	  list(GET _host_python_bin 0 PYTHON_EXECUTABLE)
+	else()
+	  message(FATAL_ERROR "No python3.* found in ${CROSSCOMPILE_HOST_LIBDIR}/python/bin/")
+	endif()
+	unset(_host_python_bin)
   else()
     set(PYTHON_EXECUTABLE "${CROSSCOMPILE_HOST_LIBDIR}/python/bin/python${PYTHON_VERSION}")
   endif()
@@ -221,7 +235,18 @@ else()
 	  "Try building MacOS version first: 'make update' or 'make deps'\n"
     )
   endif()
-  
+
+  # Detect Python version from iOS libs for FindPythonLibsUnix
+  file(GLOB _ios_python_inc "${LIBDIR}/python/include/python3.*")
+  if(_ios_python_inc)
+    list(GET _ios_python_inc 0 _ios_python_inc_dir)
+    get_filename_component(_ios_python_ver "${_ios_python_inc_dir}" NAME)
+    string(REGEX REPLACE "^python" "" _ios_python_ver "${_ios_python_ver}")
+    set(PYTHON_VERSION "${_ios_python_ver}" CACHE STRING "Python Version" FORCE)
+    message(STATUS "Detected iOS Python version: ${PYTHON_VERSION}")
+  endif()
+  unset(_ios_python_inc)
+
   message(STATUS "HOST PYTHON EXECUTABLE: ${PYTHON_EXECUTABLE}")
 endif()
 
@@ -668,7 +693,11 @@ set(EXETYPE MACOSX_BUNDLE)
 
 set(CMAKE_C_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
-if(CMAKE_OSX_ARCHITECTURES MATCHES "x86_64" OR CMAKE_OSX_ARCHITECTURES MATCHES "i386")
+if(WITH_APPLE_CROSSPLATFORM)
+  # iOS requires position-independent code; -mdynamic-no-pic is macOS-only.
+  set(CMAKE_C_FLAGS_RELEASE "-O2")
+  set(CMAKE_CXX_FLAGS_RELEASE "-O2")
+elseif(CMAKE_OSX_ARCHITECTURES MATCHES "x86_64" OR CMAKE_OSX_ARCHITECTURES MATCHES "i386")
   set(CMAKE_CXX_FLAGS_RELEASE "-O2 -mdynamic-no-pic -msse -msse2 -msse3 -mssse3")
   set(CMAKE_C_FLAGS_RELEASE "-O2 -mdynamic-no-pic  -msse -msse2 -msse3 -mssse3")
   if(NOT CMAKE_C_COMPILER_ID MATCHES "Clang")
