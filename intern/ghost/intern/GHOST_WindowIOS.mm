@@ -247,7 +247,7 @@ typedef struct UserInputEvent {
   UIPencilInteraction *pencil_interaction;
   UIScreenEdgePanGestureRecognizer *edge_swipe_left;
   UIScreenEdgePanGestureRecognizer *edge_swipe_right;
-  // GHOSTUILongPressGestureRecognizer *long_press_gesture_recognizer;
+  UILongPressGestureRecognizer *long_press_gesture_recognizer;
 
   /* Data from the Apple pencil */
   UITouch *current_pencil_touch;
@@ -440,6 +440,16 @@ typedef struct UserInputEvent {
   pencil_interaction = [[UIPencilInteraction alloc] init];
   pencil_interaction.delegate = self;
   [window->getView() addInteraction:pencil_interaction];
+
+  /* Long-press for finger right-click (context menus). */
+  long_press_gesture_recognizer = [[UILongPressGestureRecognizer alloc]
+      initWithTarget:self
+              action:@selector(handleLongPress:)];
+  long_press_gesture_recognizer.minimumPressDuration = 0.4;
+  long_press_gesture_recognizer.numberOfTouchesRequired = 1;
+  long_press_gesture_recognizer.allowedTouchTypes = @[ @(UITouchTypeDirect) ];
+  long_press_gesture_recognizer.delegate = self;
+  [window->getView() addGestureRecognizer:long_press_gesture_recognizer];
 }
 
 /* Turn the user inputs into Blender events.
@@ -850,6 +860,42 @@ typedef struct UserInputEvent {
   UserInputEvent event_info(nullptr, nullptr, nullptr, true);
   event_info.add_event(UserInputEvent::EventTypes::PENCIL_TAP);
   [self generateUserInputEvents:event_info];
+}
+
+- (void)handleLongPress:(UILongPressGestureRecognizer *)sender
+{
+  CGPoint touch_point = [sender locationInView:window->getView()];
+  CGFloat scale = [window->getView() contentScaleFactor];
+  touch_point.x *= scale;
+  touch_point.y *= scale;
+
+  if (sender.state == UIGestureRecognizerStateBegan) {
+    /* Move cursor to long-press location, then send right-click down. */
+    system->pushEvent(
+        std::make_unique<GHOST_EventCursor>(system->getMilliSeconds(),
+                              GHOST_kEventCursorMove,
+                              window,
+                              touch_point.x,
+                              touch_point.y,
+                              GHOST_TABLET_DATA_NONE));
+    system->pushEvent(
+        std::make_unique<GHOST_EventButton>(system->getMilliSeconds(),
+                              GHOST_kEventButtonDown,
+                              window,
+                              GHOST_kButtonMaskRight,
+                              GHOST_TABLET_DATA_NONE));
+  }
+  else if (sender.state == UIGestureRecognizerStateEnded ||
+           sender.state == UIGestureRecognizerStateCancelled)
+  {
+    /* Release right-click. */
+    system->pushEvent(
+        std::make_unique<GHOST_EventButton>(system->getMilliSeconds(),
+                              GHOST_kEventButtonUp,
+                              window,
+                              GHOST_kButtonMaskRight,
+                              GHOST_TABLET_DATA_NONE));
+  }
 }
 
 - (void)beginFrame

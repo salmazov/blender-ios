@@ -329,9 +329,15 @@ ENUM_OPERATORS(NodeResizeDirection);
 #define NODE_WIDTH(node) (node.width * UI_SCALE_FAC)
 #define NODE_HEIGHT(node) (node.height * UI_SCALE_FAC)
 #define NODE_MARGIN_X (1.2f * U.widget_unit)
-#define NODE_SOCKSIZE (0.25f * U.widget_unit)
+#ifdef WITH_APPLE_CROSSPLATFORM
+/* iPad touch: larger sockets and resize margins for finger interaction. */
+#  define NODE_SOCKSIZE (0.33f * U.widget_unit)
+#  define NODE_RESIZE_MARGIN (0.30f * U.widget_unit)
+#else
+#  define NODE_SOCKSIZE (0.25f * U.widget_unit)
+#  define NODE_RESIZE_MARGIN (0.20f * U.widget_unit)
+#endif
 #define NODE_MULTI_INPUT_LINK_GAP (0.25f * U.widget_unit)
-#define NODE_RESIZE_MARGIN (0.20f * U.widget_unit)
 #define NODE_LINK_RESOL 12
 
 /* `space_node.cc` */

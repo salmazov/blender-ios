@@ -775,7 +775,12 @@ void WM_window_dpi_set_userdef(const wmWindow *win)
 
   /* Widget unit is 20 pixels at 1X scale. This consists of 18 user-scaled units plus
    * left and right borders of line-width (pixel-size). */
+#ifdef WITH_APPLE_CROSSPLATFORM
+  /* iPad touch: larger base for finger-friendly UI (headers, menus, buttons, tabs). */
+  U.widget_unit = int(roundf(21.0f * U.scale_factor)) + (2 * pixelsize);
+#else
   U.widget_unit = int(roundf(18.0f * U.scale_factor)) + (2 * pixelsize);
+#endif
 }
 
 float WM_window_dpi_get_scale(const wmWindow *win)
