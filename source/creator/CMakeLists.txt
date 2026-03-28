@@ -350,7 +350,13 @@ else()
     # Add Storyboard - required for main window interface.
     set(storyboards ${OSX_APP_SOURCEDIR}/Main.storyboard)
 
-    add_executable(blender ${EXETYPE} ${SRC} ${storyboards})
+    # Asset catalog for app icon.
+    set(asset_catalog ${OSX_APP_SOURCEDIR}/Assets.xcassets)
+    set_source_files_properties(${asset_catalog} PROPERTIES
+      MACOSX_PACKAGE_LOCATION Resources
+    )
+
+    add_executable(blender ${EXETYPE} ${SRC} ${storyboards} ${asset_catalog})
 
     # Additional libraries required by static python extensions compiled directly in source.
     # Otherwise will see Python linking issues during linking in Xcode about missing SSL etc.
@@ -1934,7 +1940,10 @@ elseif(APPLE)
     )
 
     set(allresources ${storyboards})
-    set_target_properties(blender PROPERTIES RESOURCE "${allresources}")
+    set_target_properties(blender PROPERTIES
+      RESOURCE "${allresources}"
+      XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME "AppIcon"
+    )
 
     # Xcode Archiving support (Testflight, App Store, etc...)
     # This includes the Blender.app in the archive, and targets the local app dir (/Applications) as an install
