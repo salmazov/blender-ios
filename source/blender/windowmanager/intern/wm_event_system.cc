@@ -2955,6 +2955,11 @@ static eHandlerActionFlag wm_handler_fileselect_do(bContext *C,
         ScrArea *ctx_area = CTX_wm_area(C);
 
         wmWindow *temp_win = nullptr;
+#ifdef WITH_APPLE_CROSSPLATFORM
+        /* On iOS the native file picker is used; no temporary file browser window was opened,
+         * so skip the SpaceFile cleanup and window close logic. */
+        (void)ctx_area;
+#else
         for (wmWindow &win : wm->windows) {
           bScreen *screen = WM_window_get_active_screen(&win);
           ScrArea *file_area = static_cast<ScrArea *>(screen->areabase.first);
@@ -3005,6 +3010,7 @@ static eHandlerActionFlag wm_handler_fileselect_do(bContext *C,
           ED_fileselect_params_to_userdef(static_cast<SpaceFile *>(ctx_area->spacedata.first));
           ED_screen_full_prevspace(C, ctx_area);
         }
+#endif /* !WITH_APPLE_CROSSPLATFORM */
       }
 
       CTX_wm_window_set(C, root_win);

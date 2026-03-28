@@ -331,24 +331,28 @@ void GHOST_ContextIOS::metalInitFramebuffer()
 void GHOST_ContextIOS::metalUpdateFramebuffer()
 {
   /* Query screen dimensions. UIKit APIs must be called on the main thread.
-   * When called from a background thread (e.g. GPUWorker), dispatch synchronously
-   * to the main queue to avoid Main Thread Checker violations. */
-  __block size_t width = 0;
-  __block size_t height = 0;
+   * When called from a background thread (e.g. Eevee render), we use cached
+   * dimensions to avoid deadlock: dispatch_sync to main queue would block if
+   * the main thread is waiting on the DRW draw_mutex held by the render thread. */
+  static size_t cached_width = 0;
+  static size_t cached_height = 0;
 
-  auto query_screen_size = ^{
+  size_t width = 0;
+  size_t height = 0;
+
+  if ([NSThread isMainThread]) {
     UIScreen *screen = m_metalView.window.windowScene.screen ?: [UIScreen mainScreen];
     CGRect screenRect = screen.bounds;
     CGFloat scaling_fac = screen.scale;
     width = (size_t)(screenRect.size.width * scaling_fac);
     height = (size_t)(screenRect.size.height * scaling_fac);
-  };
-
-  if ([NSThread isMainThread]) {
-    query_screen_size();
+    /* Cache for background thread use. */
+    cached_width = width;
+    cached_height = height;
   }
   else {
-    dispatch_sync(dispatch_get_main_queue(), query_screen_size);
+    width = cached_width;
+    height = cached_height;
   }
 
   if (width <= 0 && height <= 0) {

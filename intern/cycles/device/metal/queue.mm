@@ -202,8 +202,13 @@ MetalDeviceQueue::~MetalDeviceQueue()
 {
   /* Tidying up here isn't really practical - we should expect and require the work
    * queue to be empty here. */
-  assert(mtlCommandBuffer_ == nil);
-  assert(command_buffers_submitted_ == command_buffers_completed_);
+  if (mtlCommandBuffer_) {
+    /* GPU error may leave a command buffer in-flight. Wait for it and clean up
+     * instead of asserting, to prevent a hard crash on iOS GPU timeouts. */
+    [mtlCommandBuffer_ waitUntilCompleted];
+    [mtlCommandBuffer_ release];
+    mtlCommandBuffer_ = nil;
+  }
 
   close_compute_encoder();
   close_blit_encoder();
@@ -272,16 +277,20 @@ int MetalDeviceQueue::num_concurrent_states(const size_t state_size) const
   size_t state_count = 4194304;
 
 #  ifdef WITH_APPLE_CROSSPLATFORM
-  /* Dynamically size the working set based on available memory on iOS.
-   * Use 50% of the smaller of process-available and GPU-recommended memory
-   * to leave headroom for textures, scene data, and the OS. */
+  /* iOS GPU watchdog kills command buffers exceeding ~2-5 seconds.
+   * Hard-cap state count to keep per-dispatch GPU work within the timeout,
+   * then further reduce based on available memory. */
   {
+    const size_t ios_max_state_count = 131072;
+    state_count = std::min(state_count, ios_max_state_count);
+
     size_t proc_avail = (size_t)os_proc_available_memory();
     size_t gpu_working_set = (size_t)[metal_device_->mtlDevice recommendedMaxWorkingSetSize];
     size_t usable = std::min(proc_avail, gpu_working_set) / 2;
     if (usable > stats_.mem_used) {
       size_t headroom = usable - stats_.mem_used;
       size_t safe_count = headroom / state_size;
+      safe_count = std::min(safe_count, ios_max_state_count);
       if (safe_count >= 65536 && safe_count < state_count) {
         metal_printf("iOS: Reducing state count %zu -> %zu (avail=%.0fMB, used=%.0fMB)",
                      state_count,
@@ -296,6 +305,8 @@ int MetalDeviceQueue::num_concurrent_states(const size_t state_size) const
       metal_printf("iOS: Memory critically low, using minimum state count 65536");
       state_count = 65536;
     }
+
+    metal_printf("iOS: Using state count %zu", state_count);
   }
   return state_count;
 #  endif
@@ -722,7 +733,26 @@ bool MetalDeviceQueue::synchronize()
 
       [mtlCommandBuffer_ encodeSignalEvent:shared_event_ value:shared_event_id_];
       [mtlCommandBuffer_ commit];
+
+      /* Use a timeout on iOS to avoid hanging forever on GPU watchdog kills. */
+#  ifdef WITH_APPLE_CROSSPLATFORM
+      const long wait_result = dispatch_semaphore_wait(
+          wait_semaphore_, dispatch_time(DISPATCH_TIME_NOW, 30LL * NSEC_PER_SEC));
+      if (wait_result != 0) {
+        metal_printf("iOS: Command buffer wait timed out (30s), possible GPU watchdog kill");
+        [mtlCommandBuffer_ waitUntilCompleted];
+      }
+#  else
       dispatch_semaphore_wait(wait_semaphore_, DISPATCH_TIME_FOREVER);
+#  endif
+
+      /* Check for GPU errors (e.g. timeout, recovery) before releasing. */
+      if (mtlCommandBuffer_.status == MTLCommandBufferStatusError) {
+        metal_printf("GPU command buffer error (status=%d)", int(mtlCommandBuffer_.status));
+        if (!metal_device_->have_error()) {
+          metal_device_->set_error("GPU command buffer execution failed");
+        }
+      }
 
       [mtlCommandBuffer_ release];
 

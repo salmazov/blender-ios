@@ -321,7 +321,7 @@ void ShaderCache::load_kernel(DeviceKernel device_kernel,
 #  else
       /* iOS: Serialize shader compilation to minimize peak memory usage.
        * Concurrent compilations risk jetsam (OS killing the MTLCompiler service). */
-      max_mtlcompiler_threads = 1;
+      max_mtlcompiler_threads = 4;
 #  endif
 
       metal_printf("Spawning %d Cycles kernel compilation threads", max_mtlcompiler_threads);

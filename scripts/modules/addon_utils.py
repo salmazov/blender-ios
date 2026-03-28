@@ -51,6 +51,14 @@ _addons_hidden_core = {
     "io_scene_fbx",
 }
 
+# On iOS, bl_pkg (extensions manager) is not functional due to sandbox
+# restrictions: no pip, no dlopen of downloaded .so, read-only app bundle.
+import sys as _sys
+if _sys.platform == "ios":
+    _addons_skip_ios = {"bl_pkg"}
+else:
+    _addons_skip_ios = set()
+
 
 # Called only once at startup, avoids calling 'reset_all', correct but slower.
 def _initialize_once():
@@ -71,6 +79,8 @@ def _initialize_once():
         )
 
     for module_name in _addons_hidden_core:
+        if module_name in _addons_skip_ios:
+            continue
         enable(
             module_name,
             # Ensured by `_initialize_extensions_repos_once`.
