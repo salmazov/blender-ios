@@ -572,6 +572,20 @@ typedef struct UserInputEvent {
   for (UITouch *touch in touches) {
     if (touch.type == UITouchTypePencil) {
       current_pencil_touch = touch;
+
+      /* Set tablet data immediately so that the first button-down event
+       * carries correct stylus information (is_motion_absolute = true).
+       * Without this, the button-down arrives as EVT_TABLET_NONE which
+       * causes Blender to enter mouse-mode for the drag, while subsequent
+       * cursor-move events switch to tablet-mode — the mismatch makes
+       * transforms/panel drags revert on release. */
+      tablet_data.Active = GHOST_kTabletModeStylus;
+      tablet_data.Pressure = touch.force / touch.maximumPossibleForce;
+      CGFloat azimuthAngle = [touch azimuthAngleInView:window->getView()];
+      CGFloat altitudeAngle = [touch altitudeAngle];
+      CGFloat maxTilt = cos(0);
+      tablet_data.Xtilt = sin(azimuthAngle) * cos(altitudeAngle) / maxTilt;
+      tablet_data.Ytilt = -cos(azimuthAngle) * cos(altitudeAngle) / maxTilt;
       break;
     }
   }
@@ -612,20 +626,30 @@ typedef struct UserInputEvent {
   }
 }
 
-/* Reset tablet data. */
+/* Reset tablet data only when the pencil touch itself ends. */
 - (void)touchesEnded:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event
 {
   [super touchesEnded:touches withEvent:event];
-  current_pencil_touch = nil;
-  tablet_data = GHOST_TABLET_DATA_NONE;
+  for (UITouch *touch in touches) {
+    if (touch.type == UITouchTypePencil) {
+      current_pencil_touch = nil;
+      tablet_data = GHOST_TABLET_DATA_NONE;
+      break;
+    }
+  }
 }
 
-/* Reset tablet data. */
+/* Reset tablet data only when the pencil touch itself is cancelled. */
 - (void)touchesCancelled:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event
 {
   [super touchesCancelled:touches withEvent:event];
-  current_pencil_touch = nil;
-  tablet_data = GHOST_TABLET_DATA_NONE;
+  for (UITouch *touch in touches) {
+    if (touch.type == UITouchTypePencil) {
+      current_pencil_touch = nil;
+      tablet_data = GHOST_TABLET_DATA_NONE;
+      break;
+    }
+  }
 }
 
 - (void)handleTap:(GHOSTUITapGestureRecognizer *)sender
@@ -729,6 +753,9 @@ typedef struct UserInputEvent {
       sender.state == UIGestureRecognizerStateCancelled ||
       sender.state == UIGestureRecognizerStateFailed)
   {
+    /* Send a final cursor-move so Blender knows the exact release position
+     * before processing the button-up. */
+    event_info.add_event(UserInputEvent::EventTypes::CURSOR_MOVE);
     event_info.add_event(UserInputEvent::EventTypes::LEFT_BUTTON_UP);
   }
   [self generateUserInputEvents:event_info];
@@ -1342,6 +1369,274 @@ typedef struct UserInputEvent {
     }
   }
   return text_field_string;
+}
+
+#pragma mark - Hardware Keyboard (pressesBegan / pressesEnded)
+
+/**
+ * Convert UIKeyboardHIDUsage (USB HID usage codes) to GHOST_TKey.
+ * Reference: USB HID Usage Tables, Section 10 (Keyboard/Keypad Page 0x07).
+ */
+static GHOST_TKey convertHIDKeyToGhost(UIKeyboardHIDUsage keyCode)
+    API_AVAILABLE(ios(13.4))
+{
+  switch (keyCode) {
+    /* Letters (0x04-0x1D). */
+    case UIKeyboardHIDUsageKeyboardA: return GHOST_kKeyA;
+    case UIKeyboardHIDUsageKeyboardB: return GHOST_kKeyB;
+    case UIKeyboardHIDUsageKeyboardC: return GHOST_kKeyC;
+    case UIKeyboardHIDUsageKeyboardD: return GHOST_kKeyD;
+    case UIKeyboardHIDUsageKeyboardE: return GHOST_kKeyE;
+    case UIKeyboardHIDUsageKeyboardF: return GHOST_kKeyF;
+    case UIKeyboardHIDUsageKeyboardG: return GHOST_kKeyG;
+    case UIKeyboardHIDUsageKeyboardH: return GHOST_kKeyH;
+    case UIKeyboardHIDUsageKeyboardI: return GHOST_kKeyI;
+    case UIKeyboardHIDUsageKeyboardJ: return GHOST_kKeyJ;
+    case UIKeyboardHIDUsageKeyboardK: return GHOST_kKeyK;
+    case UIKeyboardHIDUsageKeyboardL: return GHOST_kKeyL;
+    case UIKeyboardHIDUsageKeyboardM: return GHOST_kKeyM;
+    case UIKeyboardHIDUsageKeyboardN: return GHOST_kKeyN;
+    case UIKeyboardHIDUsageKeyboardO: return GHOST_kKeyO;
+    case UIKeyboardHIDUsageKeyboardP: return GHOST_kKeyP;
+    case UIKeyboardHIDUsageKeyboardQ: return GHOST_kKeyQ;
+    case UIKeyboardHIDUsageKeyboardR: return GHOST_kKeyR;
+    case UIKeyboardHIDUsageKeyboardS: return GHOST_kKeyS;
+    case UIKeyboardHIDUsageKeyboardT: return GHOST_kKeyT;
+    case UIKeyboardHIDUsageKeyboardU: return GHOST_kKeyU;
+    case UIKeyboardHIDUsageKeyboardV: return GHOST_kKeyV;
+    case UIKeyboardHIDUsageKeyboardW: return GHOST_kKeyW;
+    case UIKeyboardHIDUsageKeyboardX: return GHOST_kKeyX;
+    case UIKeyboardHIDUsageKeyboardY: return GHOST_kKeyY;
+    case UIKeyboardHIDUsageKeyboardZ: return GHOST_kKeyZ;
+
+    /* Number row (0x1E-0x27). */
+    case UIKeyboardHIDUsageKeyboard1: return GHOST_kKey1;
+    case UIKeyboardHIDUsageKeyboard2: return GHOST_kKey2;
+    case UIKeyboardHIDUsageKeyboard3: return GHOST_kKey3;
+    case UIKeyboardHIDUsageKeyboard4: return GHOST_kKey4;
+    case UIKeyboardHIDUsageKeyboard5: return GHOST_kKey5;
+    case UIKeyboardHIDUsageKeyboard6: return GHOST_kKey6;
+    case UIKeyboardHIDUsageKeyboard7: return GHOST_kKey7;
+    case UIKeyboardHIDUsageKeyboard8: return GHOST_kKey8;
+    case UIKeyboardHIDUsageKeyboard9: return GHOST_kKey9;
+    case UIKeyboardHIDUsageKeyboard0: return GHOST_kKey0;
+
+    /* Control keys. */
+    case UIKeyboardHIDUsageKeyboardReturnOrEnter: return GHOST_kKeyEnter;
+    case UIKeyboardHIDUsageKeyboardEscape: return GHOST_kKeyEsc;
+    case UIKeyboardHIDUsageKeyboardDeleteOrBackspace: return GHOST_kKeyBackSpace;
+    case UIKeyboardHIDUsageKeyboardTab: return GHOST_kKeyTab;
+    case UIKeyboardHIDUsageKeyboardSpacebar: return GHOST_kKeySpace;
+    case UIKeyboardHIDUsageKeyboardDeleteForward: return GHOST_kKeyDelete;
+
+    /* Punctuation. */
+    case UIKeyboardHIDUsageKeyboardHyphen: return GHOST_kKeyMinus;
+    case UIKeyboardHIDUsageKeyboardEqualSign: return GHOST_kKeyEqual;
+    case UIKeyboardHIDUsageKeyboardOpenBracket: return GHOST_kKeyLeftBracket;
+    case UIKeyboardHIDUsageKeyboardCloseBracket: return GHOST_kKeyRightBracket;
+    case UIKeyboardHIDUsageKeyboardBackslash: return GHOST_kKeyBackslash;
+    case UIKeyboardHIDUsageKeyboardSemicolon: return GHOST_kKeySemicolon;
+    case UIKeyboardHIDUsageKeyboardQuote: return GHOST_kKeyQuote;
+    case UIKeyboardHIDUsageKeyboardGraveAccentAndTilde: return GHOST_kKeyAccentGrave;
+    case UIKeyboardHIDUsageKeyboardComma: return GHOST_kKeyComma;
+    case UIKeyboardHIDUsageKeyboardPeriod: return GHOST_kKeyPeriod;
+    case UIKeyboardHIDUsageKeyboardSlash: return GHOST_kKeySlash;
+
+    /* Navigation. */
+    case UIKeyboardHIDUsageKeyboardUpArrow: return GHOST_kKeyUpArrow;
+    case UIKeyboardHIDUsageKeyboardDownArrow: return GHOST_kKeyDownArrow;
+    case UIKeyboardHIDUsageKeyboardLeftArrow: return GHOST_kKeyLeftArrow;
+    case UIKeyboardHIDUsageKeyboardRightArrow: return GHOST_kKeyRightArrow;
+    case UIKeyboardHIDUsageKeyboardHome: return GHOST_kKeyHome;
+    case UIKeyboardHIDUsageKeyboardEnd: return GHOST_kKeyEnd;
+    case UIKeyboardHIDUsageKeyboardPageUp: return GHOST_kKeyUpPage;
+    case UIKeyboardHIDUsageKeyboardPageDown: return GHOST_kKeyDownPage;
+
+    /* Function keys. */
+    case UIKeyboardHIDUsageKeyboardF1: return GHOST_kKeyF1;
+    case UIKeyboardHIDUsageKeyboardF2: return GHOST_kKeyF2;
+    case UIKeyboardHIDUsageKeyboardF3: return GHOST_kKeyF3;
+    case UIKeyboardHIDUsageKeyboardF4: return GHOST_kKeyF4;
+    case UIKeyboardHIDUsageKeyboardF5: return GHOST_kKeyF5;
+    case UIKeyboardHIDUsageKeyboardF6: return GHOST_kKeyF6;
+    case UIKeyboardHIDUsageKeyboardF7: return GHOST_kKeyF7;
+    case UIKeyboardHIDUsageKeyboardF8: return GHOST_kKeyF8;
+    case UIKeyboardHIDUsageKeyboardF9: return GHOST_kKeyF9;
+    case UIKeyboardHIDUsageKeyboardF10: return GHOST_kKeyF10;
+    case UIKeyboardHIDUsageKeyboardF11: return GHOST_kKeyF11;
+    case UIKeyboardHIDUsageKeyboardF12: return GHOST_kKeyF12;
+
+    /* Numpad. */
+    case UIKeyboardHIDUsageKeypad0: return GHOST_kKeyNumpad0;
+    case UIKeyboardHIDUsageKeypad1: return GHOST_kKeyNumpad1;
+    case UIKeyboardHIDUsageKeypad2: return GHOST_kKeyNumpad2;
+    case UIKeyboardHIDUsageKeypad3: return GHOST_kKeyNumpad3;
+    case UIKeyboardHIDUsageKeypad4: return GHOST_kKeyNumpad4;
+    case UIKeyboardHIDUsageKeypad5: return GHOST_kKeyNumpad5;
+    case UIKeyboardHIDUsageKeypad6: return GHOST_kKeyNumpad6;
+    case UIKeyboardHIDUsageKeypad7: return GHOST_kKeyNumpad7;
+    case UIKeyboardHIDUsageKeypad8: return GHOST_kKeyNumpad8;
+    case UIKeyboardHIDUsageKeypad9: return GHOST_kKeyNumpad9;
+    case UIKeyboardHIDUsageKeypadPeriod: return GHOST_kKeyNumpadPeriod;
+    case UIKeyboardHIDUsageKeypadPlus: return GHOST_kKeyNumpadPlus;
+    case UIKeyboardHIDUsageKeypadHyphen: return GHOST_kKeyNumpadMinus;
+    case UIKeyboardHIDUsageKeypadAsterisk: return GHOST_kKeyNumpadAsterisk;
+    case UIKeyboardHIDUsageKeypadSlash: return GHOST_kKeyNumpadSlash;
+    case UIKeyboardHIDUsageKeypadEnter: return GHOST_kKeyNumpadEnter;
+
+    /* Modifier keys (handled separately but map them for completeness). */
+    case UIKeyboardHIDUsageKeyboardLeftControl: return GHOST_kKeyLeftControl;
+    case UIKeyboardHIDUsageKeyboardLeftShift: return GHOST_kKeyLeftShift;
+    case UIKeyboardHIDUsageKeyboardLeftAlt: return GHOST_kKeyLeftAlt;
+    case UIKeyboardHIDUsageKeyboardLeftGUI: return GHOST_kKeyLeftOS;
+    case UIKeyboardHIDUsageKeyboardRightControl: return GHOST_kKeyRightControl;
+    case UIKeyboardHIDUsageKeyboardRightShift: return GHOST_kKeyRightShift;
+    case UIKeyboardHIDUsageKeyboardRightAlt: return GHOST_kKeyRightAlt;
+    case UIKeyboardHIDUsageKeyboardRightGUI: return GHOST_kKeyRightOS;
+    case UIKeyboardHIDUsageKeyboardCapsLock: return GHOST_kKeyCapsLock;
+
+    default:
+      return GHOST_kKeyUnknown;
+  }
+}
+
+/** Check if a HID usage code is a modifier key. */
+static bool isModifierKey(UIKeyboardHIDUsage keyCode) API_AVAILABLE(ios(13.4))
+{
+  switch (keyCode) {
+    case UIKeyboardHIDUsageKeyboardLeftControl:
+    case UIKeyboardHIDUsageKeyboardLeftShift:
+    case UIKeyboardHIDUsageKeyboardLeftAlt:
+    case UIKeyboardHIDUsageKeyboardLeftGUI:
+    case UIKeyboardHIDUsageKeyboardRightControl:
+    case UIKeyboardHIDUsageKeyboardRightShift:
+    case UIKeyboardHIDUsageKeyboardRightAlt:
+    case UIKeyboardHIDUsageKeyboardRightGUI:
+    case UIKeyboardHIDUsageKeyboardCapsLock:
+      return true;
+    default:
+      return false;
+  }
+}
+
+/** Map a GHOST_TKey modifier to GHOST_TModifierKey, or -1 if not a modifier. */
+static int ghostKeyToModifier(GHOST_TKey key)
+{
+  switch (key) {
+    case GHOST_kKeyLeftShift: return GHOST_kModifierKeyLeftShift;
+    case GHOST_kKeyRightShift: return GHOST_kModifierKeyRightShift;
+    case GHOST_kKeyLeftAlt: return GHOST_kModifierKeyLeftAlt;
+    case GHOST_kKeyRightAlt: return GHOST_kModifierKeyRightAlt;
+    case GHOST_kKeyLeftControl: return GHOST_kModifierKeyLeftControl;
+    case GHOST_kKeyRightControl: return GHOST_kModifierKeyRightControl;
+    case GHOST_kKeyLeftOS: return GHOST_kModifierKeyLeftOS;
+    case GHOST_kKeyRightOS: return GHOST_kModifierKeyRightOS;
+    default: return -1;
+  }
+}
+
+- (BOOL)canBecomeFirstResponder
+{
+  return YES;
+}
+
+- (void)pressesBegan:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event
+{
+  if (@available(iOS 13.4, *)) {
+    bool handled = false;
+    for (UIPress *press in presses) {
+      if (!press.key) {
+        continue;
+      }
+
+      UIKeyboardHIDUsage keyCode = press.key.keyCode;
+      GHOST_TKey ghostKey = convertHIDKeyToGhost(keyCode);
+      if (ghostKey == GHOST_kKeyUnknown) {
+        continue;
+      }
+
+      /* Extract UTF-8 characters for text input. */
+      char utf8_buf[6] = {0};
+      NSString *chars = press.key.characters;
+      if (chars.length > 0 && !isModifierKey(keyCode)) {
+        const char *c = [chars UTF8String];
+        if (c) {
+          size_t len = strlen(c);
+          if (len > 0 && len < sizeof(utf8_buf)) {
+            memcpy(utf8_buf, c, len);
+          }
+        }
+      }
+
+      /* Update modifier state tracking. */
+      int mod = ghostKeyToModifier(ghostKey);
+      if (mod >= 0) {
+        system->setModifierKey((GHOST_TModifierKey)mod, true);
+      }
+
+      system->pushEvent(std::make_unique<GHOST_EventKey>(
+          system->getMilliSeconds(),
+          GHOST_kEventKeyDown,
+          window,
+          ghostKey,
+          false,
+          utf8_buf));
+      system->notifyExternalEventProcessed();
+      handled = true;
+    }
+
+    if (!handled) {
+      [super pressesBegan:presses withEvent:event];
+    }
+  }
+  else {
+    [super pressesBegan:presses withEvent:event];
+  }
+}
+
+- (void)pressesEnded:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event
+{
+  if (@available(iOS 13.4, *)) {
+    bool handled = false;
+    for (UIPress *press in presses) {
+      if (!press.key) {
+        continue;
+      }
+
+      GHOST_TKey ghostKey = convertHIDKeyToGhost(press.key.keyCode);
+      if (ghostKey == GHOST_kKeyUnknown) {
+        continue;
+      }
+
+      /* Update modifier state tracking. */
+      int mod = ghostKeyToModifier(ghostKey);
+      if (mod >= 0) {
+        system->setModifierKey((GHOST_TModifierKey)mod, false);
+      }
+
+      system->pushEvent(std::make_unique<GHOST_EventKey>(
+          system->getMilliSeconds(),
+          GHOST_kEventKeyUp,
+          window,
+          ghostKey,
+          false));
+      system->notifyExternalEventProcessed();
+      handled = true;
+    }
+
+    if (!handled) {
+      [super pressesEnded:presses withEvent:event];
+    }
+  }
+  else {
+    [super pressesEnded:presses withEvent:event];
+  }
+}
+
+- (void)pressesCancelled:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event
+{
+  /* Treat cancelled as key-up to avoid stuck keys. */
+  [self pressesEnded:presses withEvent:event];
 }
 
 @end

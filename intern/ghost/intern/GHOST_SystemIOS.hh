@@ -200,6 +200,11 @@ class GHOST_SystemIOS : public GHOST_System {
   GHOST_TSuccess getModifierKeys(GHOST_ModifierKeys &keys) const override;
 
   /**
+   * Update a modifier key state. Called from GHOSTUIWindow's pressesBegan/pressesEnded.
+   */
+  void setModifierKey(GHOST_TModifierKey modifier, bool down);
+
+  /**
    * Returns the state of the mouse buttons (outside the message queue).
    * \param buttons: The state of the buttons.
    * \return Indication of success.

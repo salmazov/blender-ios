@@ -27,6 +27,7 @@
 
 #include <sys/sysctl.h>
 #include <sys/time.h>
+#include <os/proc.h>
 
 // #define IOS_SYSTEM_LOGGING
 #if defined(IOS_SYSTEM_LOGGING)
@@ -165,6 +166,52 @@ void WM_main_loop_body(bContext *C);
 }
 int main_ios_callback(int argc, const char **argv);
 
+/* Resolve WM/BKE lifecycle functions at runtime via dlsym to avoid
+ * a link-time dependency from GHOST → windowmanager. All symbols live
+ * in the same binary, so RTLD_DEFAULT finds them. */
+#include <dlfcn.h>
+
+namespace blender {
+struct Main;
+struct wmWindowManager;
+}  // namespace blender
+
+using CTX_wm_manager_fn = blender::wmWindowManager *(*)(const blender::bContext *);
+using CTX_data_main_fn = blender::Main *(*)(const blender::bContext *);
+using WM_autosave_write_fn = void (*)(blender::wmWindowManager *, blender::Main *);
+using wm_autosave_timer_fn = void (*)(blender::wmWindowManager *);
+
+static CTX_wm_manager_fn resolve_CTX_wm_manager()
+{
+  static auto fn = (CTX_wm_manager_fn)dlsym(
+      RTLD_DEFAULT, "_ZN7blender14CTX_wm_managerEPKNS_8bContextE");
+  return fn;
+}
+static CTX_data_main_fn resolve_CTX_data_main()
+{
+  static auto fn = (CTX_data_main_fn)dlsym(
+      RTLD_DEFAULT, "_ZN7blender13CTX_data_mainEPKNS_8bContextE");
+  return fn;
+}
+static WM_autosave_write_fn resolve_WM_autosave_write()
+{
+  static auto fn = (WM_autosave_write_fn)dlsym(
+      RTLD_DEFAULT, "_ZN7blender17WM_autosave_writeEPNS_15wmWindowManagerEPNS_4MainE");
+  return fn;
+}
+static wm_autosave_timer_fn resolve_wm_autosave_timer_begin()
+{
+  static auto fn = (wm_autosave_timer_fn)dlsym(
+      RTLD_DEFAULT, "_ZN7blender23wm_autosave_timer_beginEPNS_15wmWindowManagerE");
+  return fn;
+}
+static wm_autosave_timer_fn resolve_wm_autosave_timer_end()
+{
+  static auto fn = (wm_autosave_timer_fn)dlsym(
+      RTLD_DEFAULT, "_ZN7blender21wm_autosave_timer_endEPNS_15wmWindowManagerE");
+  return fn;
+}
+
 @interface IOSAppDelegate : UIResponder <UIApplicationDelegate>
 
 @property(strong, nonatomic) UIWindow *window;
@@ -190,6 +237,80 @@ int main_ios_callback(int argc, const char **argv);
   system->handleOpenDocumentRequest(url.path);
 
   return YES;
+}
+
+- (void)applicationDidEnterBackground:(UIApplication *)application
+{
+  if (!C) {
+    return;
+  }
+
+  /* Request extra time from iOS to complete the save. */
+  __block UIBackgroundTaskIdentifier bgTask = [application
+      beginBackgroundTaskWithName:@"BlenderAutosave"
+               expirationHandler:^{
+                 [application endBackgroundTask:bgTask];
+                 bgTask = UIBackgroundTaskInvalid;
+               }];
+
+  auto *wm = resolve_CTX_wm_manager() ? resolve_CTX_wm_manager()(C) : nullptr;
+  auto *bmain = resolve_CTX_data_main() ? resolve_CTX_data_main()(C) : nullptr;
+  if (wm && bmain && resolve_WM_autosave_write()) {
+    NSLog(@"Blender: entering background, saving autosave...");
+    resolve_WM_autosave_write()(wm, bmain);
+    if (resolve_wm_autosave_timer_end()) {
+      resolve_wm_autosave_timer_end()(wm);
+    }
+  }
+
+  [application endBackgroundTask:bgTask];
+  bgTask = UIBackgroundTaskInvalid;
+}
+
+- (void)applicationWillEnterForeground:(UIApplication *)application
+{
+  if (!C) {
+    return;
+  }
+
+  auto *wm = resolve_CTX_wm_manager() ? resolve_CTX_wm_manager()(C) : nullptr;
+  if (wm && resolve_wm_autosave_timer_begin()) {
+    resolve_wm_autosave_timer_begin()(wm);
+  }
+}
+
+- (void)applicationWillTerminate:(UIApplication *)application
+{
+  if (!C) {
+    return;
+  }
+
+  auto *wm = resolve_CTX_wm_manager() ? resolve_CTX_wm_manager()(C) : nullptr;
+  auto *bmain = resolve_CTX_data_main() ? resolve_CTX_data_main()(C) : nullptr;
+  if (wm && bmain && resolve_WM_autosave_write()) {
+    NSLog(@"Blender: app terminating, saving autosave...");
+    resolve_WM_autosave_write()(wm, bmain);
+  }
+}
+
+- (void)applicationDidReceiveMemoryWarning:(UIApplication *)application
+{
+  size_t available = 0;
+  if (@available(iOS 13.0, *)) {
+    available = (size_t)os_proc_available_memory();
+  }
+
+  NSLog(@"Blender: iOS memory warning! Available: %.0f MB",
+        (double)available / (1024.0 * 1024.0));
+
+  /* Force an autosave in case iOS kills us next. */
+  if (C) {
+    auto *wm = resolve_CTX_wm_manager() ? resolve_CTX_wm_manager()(C) : nullptr;
+    auto *bmain = resolve_CTX_data_main() ? resolve_CTX_data_main()(C) : nullptr;
+    if (wm && bmain && resolve_WM_autosave_write()) {
+      resolve_WM_autosave_write()(wm, bmain);
+    }
+  }
 }
 
 @end
@@ -740,10 +861,27 @@ GHOST_TSuccess GHOST_SystemIOS::setMouseCursorPosition(int32_t /*x*/, int32_t /*
   return GHOST_kSuccess;
 }
 
-GHOST_TSuccess GHOST_SystemIOS::getModifierKeys(GHOST_ModifierKeys & /*keys*/) const
+GHOST_TSuccess GHOST_SystemIOS::getModifierKeys(GHOST_ModifierKeys &keys) const
 {
-  /* iOS Passthrough. */
+  keys.set(GHOST_kModifierKeyLeftShift, (m_modifierMask & (1 << GHOST_kModifierKeyLeftShift)) != 0);
+  keys.set(GHOST_kModifierKeyRightShift, (m_modifierMask & (1 << GHOST_kModifierKeyRightShift)) != 0);
+  keys.set(GHOST_kModifierKeyLeftAlt, (m_modifierMask & (1 << GHOST_kModifierKeyLeftAlt)) != 0);
+  keys.set(GHOST_kModifierKeyRightAlt, (m_modifierMask & (1 << GHOST_kModifierKeyRightAlt)) != 0);
+  keys.set(GHOST_kModifierKeyLeftControl, (m_modifierMask & (1 << GHOST_kModifierKeyLeftControl)) != 0);
+  keys.set(GHOST_kModifierKeyRightControl, (m_modifierMask & (1 << GHOST_kModifierKeyRightControl)) != 0);
+  keys.set(GHOST_kModifierKeyLeftOS, (m_modifierMask & (1 << GHOST_kModifierKeyLeftOS)) != 0);
+  keys.set(GHOST_kModifierKeyRightOS, (m_modifierMask & (1 << GHOST_kModifierKeyRightOS)) != 0);
   return GHOST_kSuccess;
+}
+
+void GHOST_SystemIOS::setModifierKey(GHOST_TModifierKey modifier, bool down)
+{
+  if (down) {
+    m_modifierMask |= (1 << modifier);
+  }
+  else {
+    m_modifierMask &= ~(1 << modifier);
+  }
 }
 
 GHOST_TSuccess GHOST_SystemIOS::getButtons(GHOST_Buttons & /*buttons*/) const
@@ -1039,17 +1177,88 @@ GHOST_TSuccess GHOST_SystemIOS::showNativeFileDialog(const char *title,
       return GHOST_kFailure;
     }
 
-    /* If a modal is already presented, dismiss it first. */
-    if (rootVC.presentedViewController) {
-      [rootVC dismissViewControllerAnimated:NO
-                                 completion:^{
-                                   [rootVC presentViewController:picker
-                                                        animated:YES
-                                                      completion:nil];
-                                 }];
+    /* For save operations, prompt the user for a filename before showing the folder picker. */
+    if (action == GHOST_kFileDialogSave && saveFilename.length > 0) {
+      UIAlertController *alert = [UIAlertController
+          alertControllerWithTitle:@"Save As"
+                           message:@"Enter filename:"
+                    preferredStyle:UIAlertControllerStyleAlert];
+
+      [alert addTextFieldWithConfigurationHandler:^(UITextField *textField) {
+        textField.text = saveFilename;
+        textField.clearButtonMode = UITextFieldViewModeWhileEditing;
+        /* Select just the name part, without extension. */
+        NSRange dotRange = [saveFilename rangeOfString:@"." options:NSBackwardsSearch];
+        if (dotRange.location != NSNotFound) {
+          UITextPosition *start = textField.beginningOfDocument;
+          UITextPosition *end = [textField positionFromPosition:start
+                                                        offset:(NSInteger)dotRange.location];
+          if (start && end) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+              textField.selectedTextRange = [textField textRangeFromPosition:start
+                                                                 toPosition:end];
+            });
+          }
+        }
+      }];
+
+      [alert addAction:[UIAlertAction actionWithTitle:@"Cancel"
+                                                style:UIAlertActionStyleCancel
+                                              handler:^(UIAlertAction *_Nonnull a) {
+                                                /* Push a cancel event. */
+                                                GHOST_WindowIOS *window =
+                                                    this->current_active_window;
+                                                this->pushEvent(
+                                                    std::make_unique<GHOST_EventString>(
+                                                        this->getMilliSeconds(),
+                                                        GHOST_kEventNativeFileDialogResult,
+                                                        window,
+                                                        static_cast<GHOST_TEventDataPtr>(
+                                                            nullptr)));
+                                                this->notifyExternalEventProcessed();
+                                              }]];
+
+      [alert
+          addAction:[UIAlertAction
+                        actionWithTitle:@"Save"
+                                  style:UIAlertActionStyleDefault
+                                handler:^(UIAlertAction *_Nonnull a) {
+                                  NSString *newFilename = alert.textFields.firstObject.text;
+                                  if (newFilename.length > 0) {
+                                    delegate.defaultFilename = newFilename;
+                                  }
+                                  /* Now show the folder picker. */
+                                  [rootVC presentViewController:picker
+                                                       animated:YES
+                                                     completion:nil];
+                                }]];
+
+      UIViewController *presenter = rootVC.presentedViewController ?: rootVC;
+      if (presenter.presentedViewController) {
+        [presenter dismissViewControllerAnimated:NO
+                                      completion:^{
+                                        [rootVC presentViewController:alert
+                                                             animated:YES
+                                                           completion:nil];
+                                      }];
+      }
+      else {
+        [presenter presentViewController:alert animated:YES completion:nil];
+      }
     }
     else {
-      [rootVC presentViewController:picker animated:YES completion:nil];
+      /* Open mode or no filename — show the picker directly. */
+      if (rootVC.presentedViewController) {
+        [rootVC dismissViewControllerAnimated:NO
+                                   completion:^{
+                                     [rootVC presentViewController:picker
+                                                          animated:YES
+                                                        completion:nil];
+                                   }];
+      }
+      else {
+        [rootVC presentViewController:picker animated:YES completion:nil];
+      }
     }
 
     return GHOST_kSuccess;
