@@ -330,13 +330,26 @@ void GHOST_ContextIOS::metalInitFramebuffer()
 
 void GHOST_ContextIOS::metalUpdateFramebuffer()
 {
-  UIScreen *screen = m_metalView.window.windowScene.screen ?: [UIScreen mainScreen];
-  CGRect screenRect = screen.bounds;
-  CGFloat scaling_fac = screen.scale;
-  CGFloat screenWidth = screenRect.size.width;
-  CGFloat screenHeight = screenRect.size.height;
-  size_t width = screenWidth * scaling_fac;
-  size_t height = screenHeight * scaling_fac;
+  /* Query screen dimensions. UIKit APIs must be called on the main thread.
+   * When called from a background thread (e.g. GPUWorker), dispatch synchronously
+   * to the main queue to avoid Main Thread Checker violations. */
+  __block size_t width = 0;
+  __block size_t height = 0;
+
+  auto query_screen_size = ^{
+    UIScreen *screen = m_metalView.window.windowScene.screen ?: [UIScreen mainScreen];
+    CGRect screenRect = screen.bounds;
+    CGFloat scaling_fac = screen.scale;
+    width = (size_t)(screenRect.size.width * scaling_fac);
+    height = (size_t)(screenRect.size.height * scaling_fac);
+  };
+
+  if ([NSThread isMainThread]) {
+    query_screen_size();
+  }
+  else {
+    dispatch_sync(dispatch_get_main_queue(), query_screen_size);
+  }
 
   if (width <= 0 && height <= 0) {
     GHOST_ASSERT(false, "Negative or null display dimmensions");
