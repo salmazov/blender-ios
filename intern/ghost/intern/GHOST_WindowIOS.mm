@@ -50,6 +50,7 @@ typedef struct UserInputEvent {
     CURSOR_MOVE,
     PAN_GESTURE,
     PAN_GESTURE_TWO_FINGERS,
+    PAN_GESTURE_THREE_FINGERS,
     PINCH_GESTURE,
     LEFT_BUTTON_DOWN,
     LEFT_BUTTON_UP,
@@ -88,6 +89,8 @@ typedef struct UserInputEvent {
         return @"PAN";
       case PAN_GESTURE_TWO_FINGERS:
         return @"PAN2F";
+      case PAN_GESTURE_THREE_FINGERS:
+        return @"PAN3F";
       case PINCH_GESTURE:
         return @"PINCH";
       case LEFT_BUTTON_DOWN:
@@ -242,6 +245,7 @@ typedef struct UserInputEvent {
   GHOSTUITapGestureRecognizer *tap4f_gesture_recognizer;
   GHOSTUIPanGestureRecognizer *pan_gesture_recognizer;
   GHOSTUIPanGestureRecognizer *pan2f_gesture_recognizer;
+  GHOSTUIPanGestureRecognizer *pan3f_gesture_recognizer;
   GHOSTUIPinchGestureRecognizer *zoom_gesture_recognizer;
   GHOSTUIHoverGestureRecognizer *hover_gesture_recognizer;
   UIPencilInteraction *pencil_interaction;
@@ -284,6 +288,7 @@ typedef struct UserInputEvent {
 - (void)handleTap:(GHOSTUITapGestureRecognizer *)sender;
 - (void)handlePan:(GHOSTUIPanGestureRecognizer *)sender;
 - (void)handlePan2f:(GHOSTUIPanGestureRecognizer *)sender;
+- (void)handlePan3f:(GHOSTUIPanGestureRecognizer *)sender;
 - (void)handleZoom:(GHOSTUIPinchGestureRecognizer *)sender;
 
 /* On screen keyboard handling */
@@ -405,6 +410,16 @@ typedef struct UserInputEvent {
   pan2f_gesture_recognizer.maximumNumberOfTouches = 2;
   [window->getView() addGestureRecognizer:pan2f_gesture_recognizer];
 
+  /* Pan gesture recognizer - three fingers for viewport panning. */
+  pan3f_gesture_recognizer = [[GHOSTUIPanGestureRecognizer alloc]
+      initWithTarget:self
+              action:@selector(handlePan3f:)];
+  pan3f_gesture_recognizer.delegate = self;
+  pan3f_gesture_recognizer.cancelsTouchesInView = false;
+  pan3f_gesture_recognizer.minimumNumberOfTouches = 3;
+  pan3f_gesture_recognizer.maximumNumberOfTouches = 3;
+  [window->getView() addGestureRecognizer:pan3f_gesture_recognizer];
+
   /* Pinch/Zoom gesture recognizer. */
   zoom_gesture_recognizer = [[GHOSTUIPinchGestureRecognizer alloc]
       initWithTarget:self
@@ -502,6 +517,18 @@ typedef struct UserInputEvent {
                                       true,
                                       2));
           break;
+        case UserInputEvent::EventTypes::PAN_GESTURE_THREE_FINGERS:
+          system->pushEvent(
+              std::make_unique<GHOST_EventTrackpad>(system->getMilliSeconds(),
+                                      window,
+                                      GHOST_kTrackpadEventScroll,
+                                      event_info.location.x,
+                                      event_info.location.y,
+                                      event_info.translation.x,
+                                      event_info.translation.y,
+                                      true,
+                                      3));
+          break;
         case UserInputEvent::EventTypes::LEFT_BUTTON_DOWN:
           system->pushEvent(
               std::make_unique<GHOST_EventButton>(system->getMilliSeconds(),
@@ -546,7 +573,7 @@ typedef struct UserInputEvent {
   }
 }
 
-/* Allow simultaneous gestures for two finger pans and zooms but nothing else. */
+/* Allow simultaneous gestures for multi-finger pans and zooms. */
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer
     shouldRecognizeSimultaneouslyWithGestureRecognizer:
         (UIGestureRecognizer *)otherGestureRecognizer
@@ -558,6 +585,16 @@ typedef struct UserInputEvent {
   }
   if (gestureRecognizer == pan_gesture_recognizer &&
       otherGestureRecognizer == zoom_gesture_recognizer)
+  {
+    return YES;
+  }
+  if (gestureRecognizer == pan3f_gesture_recognizer &&
+      otherGestureRecognizer == zoom_gesture_recognizer)
+  {
+    return YES;
+  }
+  if (gestureRecognizer == pan3f_gesture_recognizer &&
+      otherGestureRecognizer == pan2f_gesture_recognizer)
   {
     return YES;
   }
@@ -789,6 +826,30 @@ typedef struct UserInputEvent {
            sender.state == UIGestureRecognizerStateFailed)
   {
     /* Set translation back to zero. */
+    [sender setCachedTranslation:CGPointMake(0.0f, 0.0f)];
+  }
+}
+
+- (void)handlePan3f:(GHOSTUIPanGestureRecognizer *)sender
+{
+  if (sender.state == UIGestureRecognizerStateBegan ||
+      sender.state == UIGestureRecognizerStateChanged)
+  {
+    CGPoint translation = [sender getScaledTranslation:window];
+    CGPoint relative_translation = [sender getRelativeTranslation:translation];
+    [sender setCachedTranslation:translation];
+
+    if (!CGPointEqualToPoint(relative_translation, CGPointMake(0.0f, 0.0f))) {
+      CGPoint touch_point = [sender getScaledTouchPoint:window];
+      UserInputEvent event_info(&touch_point, &relative_translation, nullptr, false);
+      event_info.add_event(UserInputEvent::EventTypes::PAN_GESTURE_THREE_FINGERS);
+      [self generateUserInputEvents:event_info];
+    }
+  }
+  else if (sender.state == UIGestureRecognizerStateEnded ||
+           sender.state == UIGestureRecognizerStateCancelled ||
+           sender.state == UIGestureRecognizerStateFailed)
+  {
     [sender setCachedTranslation:CGPointMake(0.0f, 0.0f)];
   }
 }
@@ -2179,13 +2240,16 @@ GHOST_TSuccess GHOST_WindowIOS::setWindowCustomCursorShape(const uint8_t * /*bit
 
 uint16_t GHOST_WindowIOS::getDPIHint()
 {
-  /* Compute DPI from the screen's native scale. The base PPI for @1x is 163 (iPhone)
-   * or 132 (iPad). Use 163 as a reasonable default that works well for both. */
+  /* Use the standard 96 DPI convention (same as Windows/Linux baseline) scaled
+   * by the screen's native scale factor. Since iOS coordinates in GHOST are
+   * already in native pixels (getClientBounds multiplies by screen.scale),
+   * this produces correct UI scaling: on a @2x iPad the effective DPI becomes
+   * 192 which maps to pixelsize=2 and scale_factor=2.0. */
   CGFloat scale = rootWindow.screen.scale;
   if (scale <= 0) {
     scale = 2.0;
   }
-  return (uint16_t)(163.0 * scale);
+  return (uint16_t)(96.0 * scale);
 }
 
 GHOST_TSuccess GHOST_WindowIOS::popupOnscreenKeyboard(

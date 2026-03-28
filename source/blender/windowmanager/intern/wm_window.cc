@@ -775,12 +775,7 @@ void WM_window_dpi_set_userdef(const wmWindow *win)
 
   /* Widget unit is 20 pixels at 1X scale. This consists of 18 user-scaled units plus
    * left and right borders of line-width (pixel-size). */
-#ifdef WITH_APPLE_CROSSPLATFORM
-  /* iPad touch: larger base for finger-friendly UI (headers, menus, buttons, tabs). */
-  U.widget_unit = int(roundf(21.0f * U.scale_factor)) + (2 * pixelsize);
-#else
   U.widget_unit = int(roundf(18.0f * U.scale_factor)) + (2 * pixelsize);
-#endif
 }
 
 float WM_window_dpi_get_scale(const wmWindow *win)
@@ -1978,12 +1973,17 @@ static bool ghost_event_proc(const GHOST_IEvent *ghost_event, GHOST_TUserDataPtr
           WM_event_add_notifier_ex(wm, win, NC_WINDOW | NA_EDITED, nullptr);
 
 #if defined(__APPLE__) || defined(WIN32)
-          /* MACOS and WIN32 don't return to the main-loop while resize. */
+#  ifndef WITH_APPLE_CROSSPLATFORM
+          /* MACOS and WIN32 don't return to the main-loop while resize.
+           * On iOS, resize events arrive through the normal event queue inside
+           * drawInMTKView, so nested drawing here would cause framebuffer conflicts
+           * with in-flight Metal command buffers (e.g. during Cycles render). */
           int dummy_sleep_ms = 0;
           wm_window_timers_process(C, &dummy_sleep_ms);
           wm_event_do_handlers(C);
           wm_event_do_notifiers(C);
           wm_draw_update(C);
+#  endif
 #endif
         }
       }

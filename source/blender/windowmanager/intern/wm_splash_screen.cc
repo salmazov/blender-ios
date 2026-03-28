@@ -300,7 +300,11 @@ static ui::Block *wm_block_splash_create(bContext *C, ARegion *region, void * /*
   block_theme_style_set(block, ui::BLOCK_THEME_STYLE_POPUP);
 
   int splash_width = style->widget.points * 45 * UI_SCALE_FAC;
+#ifdef WITH_APPLE_CROSSPLATFORM
+  CLAMP_MAX(splash_width, WM_window_native_pixel_x(CTX_wm_window(C)) * 0.5f);
+#else
   CLAMP_MAX(splash_width, WM_window_native_pixel_x(CTX_wm_window(C)) * 0.7f);
+#endif
   int splash_height;
 
   /* Would be nice to support caching this, so it only has to be re-read (and likely resized) on

@@ -1640,6 +1640,8 @@ def km_view3d(params):
             ("view3d.rotate", {"type": 'TRACKPADPAN', "value": 'ANY'}, None),
             ("view3d.move", {"type": 'TRACKPADPAN', "value": 'ANY', "shift": True}, None),
         )),
+        # Fallback: three-finger trackpad pan on iOS (events pass through rotate).
+        ("view3d.move", {"type": 'TRACKPADPAN', "value": 'ANY'}, None),
         ("view3d.view_pan", {"type": 'WHEELLEFTMOUSE', "value": 'PRESS'},
             {"properties": [("type", 'PANLEFT')]}),
         ("view3d.view_pan", {"type": 'WHEELRIGHTMOUSE', "value": 'PRESS'},

@@ -370,9 +370,10 @@ static wmOperatorStatus viewrotate_invoke_impl(bContext *C,
 static wmOperatorStatus viewrotate_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
 #ifdef WITH_APPLE_CROSSPLATFORM
-  /* Only scroll view with multiple fingers on iOS. */
+  /* Only rotate with two-finger gesture on iOS. Pass through other events
+   * so three-finger pan can be handled by view3d.move. */
   if (!(event->flag & WM_EVENT_MULTITOUCH_TWO_FINGERS)) {
-    return OPERATOR_FINISHED;
+    return OPERATOR_PASS_THROUGH;
   }
 #endif
 
