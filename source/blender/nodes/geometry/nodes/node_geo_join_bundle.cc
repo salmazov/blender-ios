@@ -2,7 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <fmt/format.h>
 #include "BLI_fmt.hh"
 
 #include "NOD_geometry_nodes_bundle.hh"
@@ -61,14 +60,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   if (!overridden_keys.is_empty()) {
-    std::string keys_str;
-    for (const UString &key : overridden_keys) {
-      if (!keys_str.empty()) {
-        keys_str += ", ";
-      }
-      keys_str += key.string();
-    }
-    std::string message = fmt::format("{}: {}", TIP_("Duplicate keys"), keys_str);
+    std::string message = fmt::format(
+        "{}: {}", TIP_("Duplicate keys"), fmt::join(overridden_keys, ", "));
     params.error_message_add(NodeWarningType::Info, std::move(message));
   }
 

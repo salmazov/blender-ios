@@ -134,25 +134,5 @@ inline std::string_view format_as(UString str)
 
 }  // namespace blender
 
-/**
- * Disable conflicting range formatter in fmtlib. Otherwise we will get compile errors
- * where fmtlib doesn't know if it should use the formatter from format.h or ranges.h.
- */
-#if __has_include(<fmt/ranges.h>)
-namespace fmt {
-
-template<> struct is_range<blender::UString, char> : std::false_type {};
-
-}  // namespace fmt
-#endif
-
-/**
- * Explicit formatter for UString. Required because fmt 9.1 (bundled with OIIO on iOS)
- * only supports `format_as` for enum types, not classes.
- */
-template<> struct fmt::formatter<blender::UString> : fmt::formatter<std::string_view> {
-  auto format(const blender::UString &s, fmt::format_context &ctx) const
-  {
-    return fmt::formatter<std::string_view>::format(s.string(), ctx);
-  }
-};
+BLI_FMT_DISABLE_RANGE(blender::UString);
+BLI_FMT_FORMATTER_STRING_VIEW(blender::UString, s.string());
