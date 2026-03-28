@@ -144,7 +144,8 @@ class Operation {
    *   mapped to the input if no previous processors exists.
    * - Switch the result mapped to the input to be the output result of the processor.
    * - Evaluate the processor. */
-  void add_and_evaluate_input_processor(StringRef identifier, SimpleOperation *processor);
+  void add_and_evaluate_input_processor(StringRef identifier,
+                                        std::unique_ptr<SimpleOperation> processor);
 
   /* Release the results that are mapped to the inputs of the operation. This is called after the
    * evaluation of the operation to declare that the results are no longer needed by this

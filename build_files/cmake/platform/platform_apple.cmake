@@ -213,20 +213,17 @@ if(NOT WITH_APPLE_CROSSPLATFORM)
   endif()
 
 else()
-  # When building for iOS we use the MacOS version of Python from the macos libs dir
+  # When building for iOS we use the MacOS version of Python from the macos libs dir.
+  # Always auto-detect the host Python executable from macOS libs, regardless of the
+  # cached PYTHON_VERSION (which reflects the iOS libs and may differ).
   set(CROSSCOMPILE_HOST_LIBDIR "${CMAKE_SOURCE_DIR}/lib/macos_arm64")
-  if(NOT PYTHON_VERSION)
-	# Auto-detect host Python version from macOS libs
-	file(GLOB _host_python_bin "${CROSSCOMPILE_HOST_LIBDIR}/python/bin/python3.*")
-	if(_host_python_bin)
-	  list(GET _host_python_bin 0 PYTHON_EXECUTABLE)
-	else()
-	  message(FATAL_ERROR "No python3.* found in ${CROSSCOMPILE_HOST_LIBDIR}/python/bin/")
-	endif()
-	unset(_host_python_bin)
+  file(GLOB _host_python_bin "${CROSSCOMPILE_HOST_LIBDIR}/python/bin/python3.*")
+  if(_host_python_bin)
+    list(GET _host_python_bin 0 PYTHON_EXECUTABLE)
   else()
-    set(PYTHON_EXECUTABLE "${CROSSCOMPILE_HOST_LIBDIR}/python/bin/python${PYTHON_VERSION}")
+    message(FATAL_ERROR "No python3.* found in ${CROSSCOMPILE_HOST_LIBDIR}/python/bin/")
   endif()
+  unset(_host_python_bin)
   if(NOT EXISTS ${PYTHON_EXECUTABLE})
     message(
       FATAL_ERROR

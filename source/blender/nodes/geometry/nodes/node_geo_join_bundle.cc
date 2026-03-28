@@ -61,8 +61,14 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   if (!overridden_keys.is_empty()) {
-    std::string message = fmt::format(
-        "{}: {}", TIP_("Duplicate keys"), fmt::join(overridden_keys, ", "));
+    std::string keys_str;
+    for (const UString &key : overridden_keys) {
+      if (!keys_str.empty()) {
+        keys_str += ", ";
+      }
+      keys_str += key.string();
+    }
+    std::string message = fmt::format("{}: {}", TIP_("Duplicate keys"), keys_str);
     params.error_message_add(NodeWarningType::Info, std::move(message));
   }
 

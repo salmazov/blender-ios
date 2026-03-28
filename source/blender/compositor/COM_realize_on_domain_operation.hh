@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <memory>
+
 #include "COM_context.hh"
 #include "COM_domain.hh"
 #include "COM_input_descriptor.hh"
@@ -36,10 +38,11 @@ class RealizeOnDomainOperation : public SimpleOperation {
    * operation domain are realized and the size of the domain is increased/reduced to adapt to the
    * new transformation. For instance, if the transformation is a rotation, the domain will be
    * rotated and expanded in size to account for the bounding box of the domain after rotation. */
-  static SimpleOperation *construct_if_needed(Context &context,
-                                              const Result &input_result,
-                                              const InputDescriptor &input_descriptor,
-                                              const Domain &operation_domain);
+  static std::unique_ptr<SimpleOperation> construct_if_needed(
+      Context &context,
+      const Result &input_result,
+      const InputDescriptor &input_descriptor,
+      const Domain &operation_domain);
 
  protected:
   /* The operation domain is just the target domain. */

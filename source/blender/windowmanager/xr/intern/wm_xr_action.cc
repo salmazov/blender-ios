@@ -246,7 +246,7 @@ bool WM_xr_action_create(wmXrData *xr,
   char **subaction_paths = MEM_new_array_zeroed<char *>(count, "XrAction_SubactionPathPointers");
 
   for (auto [subaction_idx, user_path] : user_paths->enumerate()) {
-    subaction_paths[subaction_idx] = (char *)user_path.path;
+    subaction_paths[subaction_idx] = const_cast<char *>(user_path.path);
   }
 
   GHOST_XrActionInfo info{};

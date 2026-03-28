@@ -266,7 +266,7 @@ Domain RealizeOnDomainOperation::compute_domain()
   return target_domain_;
 }
 
-SimpleOperation *RealizeOnDomainOperation::construct_if_needed(
+std::unique_ptr<SimpleOperation> RealizeOnDomainOperation::construct_if_needed(
     Context &context,
     const Result &input_result,
     const InputDescriptor &input_descriptor,
@@ -305,7 +305,8 @@ SimpleOperation *RealizeOnDomainOperation::construct_if_needed(
     return nullptr;
   }
 
-  return new RealizeOnDomainOperation(context, realized_target_domain, input_descriptor.type);
+  return std::make_unique<RealizeOnDomainOperation>(
+      context, realized_target_domain, input_descriptor.type);
 }
 
 }  // namespace blender::compositor

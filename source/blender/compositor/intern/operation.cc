@@ -97,18 +97,20 @@ void Operation::evaluate_input_processors()
    * evaluated first. */
 
   for (const StringRef &identifier : results_mapped_to_inputs_.keys()) {
-    SimpleOperation *conversion = ConversionOperation::construct_if_needed(
-        this->context(), this->get_input(identifier), this->get_input_descriptor(identifier));
-    this->add_and_evaluate_input_processor(identifier, conversion);
+    this->add_and_evaluate_input_processor(
+        identifier,
+        ConversionOperation::construct_if_needed(
+            this->context(), this->get_input(identifier), this->get_input_descriptor(identifier)));
   }
 
   for (const StringRef &identifier : results_mapped_to_inputs_.keys()) {
-    SimpleOperation *realize_on_domain = RealizeOnDomainOperation::construct_if_needed(
-        this->context(),
-        this->get_input(identifier),
-        this->get_input_descriptor(identifier),
-        this->compute_domain());
-    this->add_and_evaluate_input_processor(identifier, realize_on_domain);
+    this->add_and_evaluate_input_processor(
+        identifier,
+        RealizeOnDomainOperation::construct_if_needed(
+            this->context(),
+            this->get_input(identifier),
+            this->get_input_descriptor(identifier),
+            this->compute_domain()));
   }
 }
 
@@ -143,7 +145,8 @@ Context &Operation::context() const
   return context_;
 }
 
-void Operation::add_and_evaluate_input_processor(StringRef identifier, SimpleOperation *processor)
+void Operation::add_and_evaluate_input_processor(StringRef identifier,
+                                                  std::unique_ptr<SimpleOperation> processor)
 {
   /* Allow null inputs to facilitate construct_if_needed pattern of addition. For instance, see the
    * implementation of the evaluate_input_processors method. */
@@ -161,12 +164,13 @@ void Operation::add_and_evaluate_input_processor(StringRef identifier, SimpleOpe
 
   /* Map the input result of the processor and add it to the processors vector. */
   processor->map_input_to_result(&result);
-  processors.append(std::unique_ptr<SimpleOperation>(processor));
+  SimpleOperation *processor_ptr = processor.get();
+  processors.append(std::move(processor));
 
   /* Switch the result mapped to the input to be the output result of the processor. */
-  results_mapped_to_inputs_.lookup(identifier) = &processor->get_result();
+  results_mapped_to_inputs_.lookup(identifier) = &processor_ptr->get_result();
 
-  processor->evaluate();
+  processor_ptr->evaluate();
 }
 
 void Operation::release_inputs()

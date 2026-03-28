@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <cstring>
+#include <memory>
 #include <string>
 
 #include "BLI_listbase.h"
@@ -308,8 +309,9 @@ class Context : public compositor::Context {
     /* Realize the transforms if needed. */
     const InputDescriptor input_descriptor = {ResultType::Color,
                                               InputRealizationMode::OperationDomain};
-    SimpleOperation *realization_operation = RealizeOnDomainOperation::construct_if_needed(
-        *this, viewer_result, input_descriptor, viewer_result.domain());
+    std::unique_ptr<SimpleOperation> realization_operation =
+        RealizeOnDomainOperation::construct_if_needed(
+            *this, viewer_result, input_descriptor, viewer_result.domain());
 
     if (realization_operation) {
       Result realize_input = this->create_result(ResultType::Color, viewer_result.precision());
@@ -317,10 +319,11 @@ class Context : public compositor::Context {
       realization_operation->map_input_to_result(&realize_input);
       realization_operation->evaluate();
 
+      /* Get and consume the result before the operation (and its internal storage) is destroyed
+       * at scope exit. */
       Result &realized_viewer_result = realization_operation->get_result();
       this->write_viewer_image(realized_viewer_result);
       realized_viewer_result.release();
-      delete realization_operation;
       return;
     }
 
@@ -628,15 +631,17 @@ class Context : public compositor::Context {
       const Domain compositing_domain = this->get_compositing_domain();
       const InputDescriptor input_descriptor = {ResultType::Color,
                                                 InputRealizationMode::OperationDomain};
-      SimpleOperation *realization_operation = RealizeOnDomainOperation::construct_if_needed(
-          *this, output_result, input_descriptor, compositing_domain);
+      std::unique_ptr<SimpleOperation> realization_operation =
+          RealizeOnDomainOperation::construct_if_needed(
+              *this, output_result, input_descriptor, compositing_domain);
       if (realization_operation) {
         realization_operation->map_input_to_result(&output_result);
         realization_operation->evaluate();
+        /* Get and consume the result before the operation (and its internal storage) is destroyed
+         * at scope exit. */
         Result &realized_output_result = realization_operation->get_result();
         this->write_output(realized_output_result);
         realized_output_result.release();
-        delete realization_operation;
         continue;
       }
 

@@ -158,34 +158,34 @@ MINLINE unsigned int log2_ceil_u(unsigned int x)
 #define _round_clamp_fl_impl(arg, ty, min, max) \
   { \
     float r = floorf(arg + 0.5f); \
-    if (UNLIKELY(r <= (float)min)) { \
-      return (ty)min; \
+    if (UNLIKELY(r <= static_cast<float>(min))) { \
+      return static_cast<ty>(min); \
     } \
-    if (UNLIKELY(r >= (float)max)) { \
-      return (ty)max; \
+    if (UNLIKELY(r >= static_cast<float>(max))) { \
+      return static_cast<ty>(max); \
     } \
-    return (ty)r; \
+    return static_cast<ty>(r); \
   }
 
 #define _round_clamp_db_impl(arg, ty, min, max) \
   { \
     double r = floor(arg + 0.5); \
-    if (UNLIKELY(r <= (double)min)) { \
-      return (ty)min; \
+    if (UNLIKELY(r <= static_cast<double>(min))) { \
+      return static_cast<ty>(min); \
     } \
-    if (UNLIKELY(r >= (double)max)) { \
-      return (ty)max; \
+    if (UNLIKELY(r >= static_cast<double>(max))) { \
+      return static_cast<ty>(max); \
     } \
-    return (ty)r; \
+    return static_cast<ty>(r); \
   }
 
 #define _round_fl_impl(arg, ty) \
   { \
-    return (ty)floorf(arg + 0.5f); \
+    return static_cast<ty>(floorf(arg + 0.5f)); \
   }
 #define _round_db_impl(arg, ty) \
   { \
-    return (ty)floor(arg + 0.5); \
+    return static_cast<ty>(floor(arg + 0.5)); \
   }
 
 MINLINE unsigned char round_fl_to_uchar(float a){_round_fl_impl(a, unsigned char)} MINLINE

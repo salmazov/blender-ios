@@ -81,8 +81,9 @@ class CompositorModifierContext : public CompositorContext {
     /* Realize the transforms if needed. */
     const InputDescriptor input_descriptor = {ResultType::Color,
                                               InputRealizationMode::OperationDomain};
-    SimpleOperation *realization_operation = RealizeOnDomainOperation::construct_if_needed(
-        *this, viewer_result, input_descriptor, viewer_result.domain());
+    std::unique_ptr<SimpleOperation> realization_operation =
+        RealizeOnDomainOperation::construct_if_needed(
+            *this, viewer_result, input_descriptor, viewer_result.domain());
 
     if (realization_operation) {
       Result realize_input = this->create_result(ResultType::Color, viewer_result.precision());
@@ -94,7 +95,6 @@ class CompositorModifierContext : public CompositorContext {
       this->write_output(realized_viewer_result, *image_buffer_);
       realized_viewer_result.release();
       viewer_was_written_ = true;
-      delete realization_operation;
       return;
     }
 

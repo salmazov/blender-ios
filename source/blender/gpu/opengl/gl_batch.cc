@@ -105,7 +105,8 @@ void GLVaoCache::insert(const GLShaderInterface *interface, GLuint vao)
       i = dynamic_vaos.count;
       dynamic_vaos.count += GPU_BATCH_VAO_DYN_ALLOC_COUNT;
       dynamic_vaos.interfaces = static_cast<const GLShaderInterface **>(MEM_realloc_zeroed(
-          (void *)dynamic_vaos.interfaces, sizeof(GLShaderInterface *) * dynamic_vaos.count));
+          const_cast<void *>(static_cast<const void *>(dynamic_vaos.interfaces)),
+          sizeof(GLShaderInterface *) * dynamic_vaos.count));
       dynamic_vaos.vao_ids = static_cast<GLuint *>(
           MEM_realloc_zeroed(dynamic_vaos.vao_ids, sizeof(GLuint) * dynamic_vaos.count));
     }

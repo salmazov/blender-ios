@@ -910,7 +910,7 @@ static void where_am_i(char *program_filepath,
     path = br_find_exe(nullptr);
     if (path) {
       BLI_strncpy(program_filepath, path, program_filepath_maxncpy);
-      free((void *)path);
+      free(path);
       return;
     }
   }

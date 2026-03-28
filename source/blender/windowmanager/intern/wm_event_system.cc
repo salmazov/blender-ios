@@ -703,7 +703,7 @@ void wm_event_do_notifiers(bContext *C)
 
       note_next = note->next;
       if (wm_notifier_is_clear(note)) {
-        BLI_remlink(&wm->runtime->notifier_queue, (void *)note);
+        BLI_remlink(&wm->runtime->notifier_queue, const_cast<wmNotifier *>(note));
         MEM_delete(note);
       }
     }

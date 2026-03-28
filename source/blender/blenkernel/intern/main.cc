@@ -84,7 +84,7 @@ Main::~Main()
 
   BLI_spin_end(reinterpret_cast<SpinLock *>(this->lock));
   /* The void cast is needed when building without TBB. */
-  MEM_delete_void((void *)reinterpret_cast<SpinLock *>(this->lock));
+  MEM_delete_void(static_cast<void *>(this->lock));
   this->lock = nullptr;
 }
 

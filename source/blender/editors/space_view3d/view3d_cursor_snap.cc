@@ -46,7 +46,8 @@ namespace blender {
 
 #define STATE_INTERN_GET(state) \
 \
-  (SnapStateIntern *)((char *)state - offsetof(SnapStateIntern, snap_state))
+  reinterpret_cast<SnapStateIntern *>(reinterpret_cast<char *>(state) - \
+                                      offsetof(SnapStateIntern, snap_state))
 
 struct SnapStateIntern {
   SnapStateIntern *next, *prev;

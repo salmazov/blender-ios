@@ -3135,8 +3135,8 @@ void CustomData_copy_data_layer(const CustomData *source,
       CLOG_WARN(&LOG,
                 "null data for %s type (%p --> %p), skipping",
                 layerType_getName(eCustomDataType(source->layers[src_layer_index].type)),
-                (void *)src_data,
-                (void *)dst_data);
+                static_cast<const void *>(src_data),
+                static_cast<const void *>(dst_data));
     }
     return;
   }

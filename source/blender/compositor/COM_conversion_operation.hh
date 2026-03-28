@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <memory>
+
 #include "COM_context.hh"
 #include "COM_input_descriptor.hh"
 #include "COM_result.hh"
@@ -30,9 +32,10 @@ class ConversionOperation : public SimpleOperation {
   /* Determine if a conversion operation is needed for the input with the given result and
    * descriptor. If it is not needed, return a null pointer. If it is needed, return an instance of
    * the appropriate conversion operation. */
-  static SimpleOperation *construct_if_needed(Context &context,
-                                              const Result &input_result,
-                                              const InputDescriptor &input_descriptor);
+  static std::unique_ptr<SimpleOperation> construct_if_needed(
+      Context &context,
+      const Result &input_result,
+      const InputDescriptor &input_descriptor);
 
  private:
   /* Convert the input single value result to the output single value result. */

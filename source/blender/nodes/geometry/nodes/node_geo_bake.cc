@@ -607,7 +607,9 @@ bool get_bake_draw_context(const bContext *C, const bNode &node, BakeDrawContext
   }
 
   r_ctx.bake_rna = RNA_pointer_create_discrete(
-      const_cast<ID *>(&r_ctx.object->id), RNA_NodesModifierBake, (void *)r_ctx.bake);
+      const_cast<ID *>(&r_ctx.object->id),
+      RNA_NodesModifierBake,
+      static_cast<void *>(const_cast<NodesModifierBake *>(r_ctx.bake)));
   if (r_ctx.nmd->runtime->cache) {
     const bke::bake::ModifierCache &cache = *r_ctx.nmd->runtime->cache;
     std::lock_guard lock{cache.mutex};

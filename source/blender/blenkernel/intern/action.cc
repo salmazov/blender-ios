@@ -1688,7 +1688,10 @@ bool BKE_pose_copy_result(bPose *to, bPose *from)
 {
   if (to == nullptr || from == nullptr) {
     CLOG_ERROR(
-        &LOG, "Pose copy error, pose to:%p from:%p", (void *)to, (void *)from); /* debug temp */
+        &LOG,
+        "Pose copy error, pose to:%p from:%p",
+        static_cast<void *>(to),
+        static_cast<void *>(from)); /* debug temp */
     return false;
   }
 

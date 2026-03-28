@@ -921,7 +921,7 @@ static void converter_init(const MultiresReshapeSmoothContext *reshape_smooth_co
 
   converter->freeUserData = nullptr;
 
-  converter->user_data = (void *)reshape_smooth_context;
+  converter->user_data = const_cast<MultiresReshapeSmoothContext *>(reshape_smooth_context);
 }
 
 /* Create subdiv descriptor created for topology at a reshape level. */

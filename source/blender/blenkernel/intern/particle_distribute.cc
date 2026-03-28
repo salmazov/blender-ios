@@ -1274,7 +1274,7 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx,
                   totpart,
                   sizeof(int),
                   distribute_compare_orig_index,
-                  (void *)orig_index);
+                  const_cast<void *>(static_cast<const void *>(orig_index)));
     }
   }
 

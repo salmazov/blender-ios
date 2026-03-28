@@ -130,9 +130,8 @@ void ConversionOperation::execute()
   }
 }
 
-SimpleOperation *ConversionOperation::construct_if_needed(Context &context,
-                                                          const Result &input_result,
-                                                          const InputDescriptor &input_descriptor)
+std::unique_ptr<SimpleOperation> ConversionOperation::construct_if_needed(
+    Context &context, const Result &input_result, const InputDescriptor &input_descriptor)
 {
   if (input_descriptor.skip_type_conversion) {
     return nullptr;
@@ -141,7 +140,7 @@ SimpleOperation *ConversionOperation::construct_if_needed(Context &context,
   const ResultType result_type = input_result.type();
   const ResultType expected_type = input_descriptor.type;
   if (result_type != expected_type) {
-    return new ConversionOperation(context, result_type, expected_type);
+    return std::make_unique<ConversionOperation>(context, result_type, expected_type);
   }
   return nullptr;
 }

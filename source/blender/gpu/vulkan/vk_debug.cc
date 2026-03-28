@@ -130,13 +130,13 @@ void VKBackend::debug_capture_end()
 
 void *VKContext::debug_capture_scope_create(const char *name)
 {
-  return (void *)name;
+  return const_cast<char *>(name);
 }
 
 bool VKContext::debug_capture_scope_begin(void *scope)
 {
 #ifdef WITH_RENDERDOC
-  const char *title = (const char *)scope;
+  const char *title = static_cast<const char *>(scope);
   if (StringRefNull(title) != StringRefNull(G.gpu_debug_scope_name)) {
     return false;
   }
