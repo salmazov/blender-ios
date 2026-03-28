@@ -2264,7 +2264,13 @@ static wmOperatorStatus image_save_exec(bContext *C, wmOperator *op)
   image_save_options_from_op(bmain, &opts, op);
 
   /* Check if file write permission is ok. */
+#ifdef WITH_APPLE_CROSSPLATFORM
+  /* On iOS, skip the POSIX access() writable check entirely.
+   * access() does not honor iOS sandbox extensions or security-scoped resources. */
+  if (false) {
+#else
   if (BLI_exists(opts.filepath) && !BLI_file_is_writable(opts.filepath)) {
+#endif
     BKE_reportf(
         op->reports, RPT_ERROR, "Cannot save image, path \"%s\" is not writable", opts.filepath);
   }

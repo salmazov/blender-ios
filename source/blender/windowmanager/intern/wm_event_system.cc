@@ -3027,8 +3027,31 @@ static eHandlerActionFlag wm_handler_fileselect_do(bContext *C,
           wm->op_undo_depth++;
         }
 
+#ifdef WITH_APPLE_CROSSPLATFORM
+        /* On iOS, bracket the operator exec with security-scoped file access.
+         * Files picked via UIDocumentPickerViewController require this for
+         * read/write through standard POSIX I/O (fopen etc.). */
+        char ios_filepath[1024] = "";
+        {
+          PropertyRNA *prop_fp = RNA_struct_find_property(handler->op->ptr, "filepath");
+          if (prop_fp) {
+            RNA_property_string_get(handler->op->ptr, prop_fp, ios_filepath);
+          }
+        }
+        GHOST_ISystem *ghost_system_fs = GHOST_ISystem::getSystem();
+        if (ghost_system_fs && ios_filepath[0] != '\0') {
+          ghost_system_fs->startSecurityScopedFileAccess(ios_filepath);
+        }
+#endif
+
         const wmOperatorStatus retval = handler->op->type->exec(C, handler->op);
         OPERATOR_RETVAL_CHECK(retval);
+
+#ifdef WITH_APPLE_CROSSPLATFORM
+        if (ghost_system_fs && ios_filepath[0] != '\0') {
+          ghost_system_fs->stopSecurityScopedFileAccess(ios_filepath);
+        }
+#endif
 
         /* XXX check this carefully, `CTX_wm_manager(C) == wm` is a bit hackish. */
         if (handler->op->type->flag & OPTYPE_UNDO && CTX_wm_manager(C) == wm) {

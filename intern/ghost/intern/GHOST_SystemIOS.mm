@@ -86,6 +86,8 @@ static NSURL *lookupSecurityScopedURL(const char *filepath)
 @interface GHOST_IOSFilePickerDelegate
     : NSObject <UIDocumentPickerDelegate, UIAdaptivePresentationControllerDelegate>
 @property(nonatomic, assign) GHOST_SystemIOS *ghostSystem;
+/** For save-to-folder mode: the default filename to append to the chosen directory. */
+@property(nonatomic, copy) NSString *defaultFilename;
 @end
 
 @implementation GHOST_IOSFilePickerDelegate
@@ -101,6 +103,13 @@ static NSURL *lookupSecurityScopedURL(const char *filepath)
 
     /* Store the original security-scoped URL for later access (e.g., saving). */
     storeSecurityScopedURL(url);
+
+    /* For save-to-folder: the user picked a directory, append the default filename. */
+    if (_defaultFilename.length > 0) {
+      NSURL *fileURL = [url URLByAppendingPathComponent:_defaultFilename];
+      storeSecurityScopedURL(fileURL);
+      url = fileURL;
+    }
 
     const char *path = [url.path UTF8String];
     const size_t pathLen = strlen(path);
@@ -961,48 +970,30 @@ GHOST_TSuccess GHOST_SystemIOS::showNativeFileDialog(const char *title,
 
     UIDocumentPickerViewController *picker = nil;
 
+    /* Extract the default filename from default_path for save operations. */
+    NSString *saveFilename = nil;
+
     if (action == GHOST_kFileDialogOpen) {
       picker = [[UIDocumentPickerViewController alloc] initForOpeningContentTypes:contentTypes];
       picker.allowsMultipleSelection = NO;
     }
     else {
-      /* For save, use initForExportingURLs to show a proper "save to" dialog.
-       * iOS requires a source file to export — if the file exists at default_path, use it directly.
-       * Otherwise create a temporary placeholder file so the user can choose a destination.
-       * The placeholder will be overwritten by Blender's actual save operation. */
-      NSURL *sourceURL = nil;
-
+      /* For save, use a folder picker. The user picks a destination directory, and Blender
+       * writes the file directly into it with security-scoped access. This avoids the
+       * initForExportingURLs approach which copies a placeholder — the copy is often not
+       * writable afterward in the file provider's domain, leading to 0 KB files. */
+      saveFilename = @"untitled.blend";
       if (default_path && default_path[0] != '\0') {
         NSString *pathStr = [NSString stringWithUTF8String:default_path];
-        BOOL isDir = NO;
-        if ([[NSFileManager defaultManager] fileExistsAtPath:pathStr isDirectory:&isDir] && !isDir)
-        {
-          sourceURL = [NSURL fileURLWithPath:pathStr];
+        NSString *lastComponent = [pathStr lastPathComponent];
+        if (lastComponent.length > 0 && [lastComponent containsString:@"."]) {
+          saveFilename = lastComponent;
         }
       }
 
-      if (!sourceURL) {
-        /* Create a temporary placeholder file.
-         * Derive the filename from default_path if possible, otherwise use "untitled.blend". */
-        NSString *filename = @"untitled.blend";
-        if (default_path && default_path[0] != '\0') {
-          NSString *pathStr = [NSString stringWithUTF8String:default_path];
-          NSString *lastComponent = [pathStr lastPathComponent];
-          if (lastComponent.length > 0 && [lastComponent containsString:@"."]) {
-            filename = lastComponent;
-          }
-        }
-
-        NSString *tempDir = NSTemporaryDirectory();
-        NSString *tempPath = [tempDir stringByAppendingPathComponent:filename];
-        /* Create an empty file as placeholder. */
-        [[NSFileManager defaultManager] createFileAtPath:tempPath contents:[NSData data] attributes:nil];
-        sourceURL = [NSURL fileURLWithPath:tempPath];
-      }
-
-      if (sourceURL) {
-        picker = [[UIDocumentPickerViewController alloc] initForExportingURLs:@[ sourceURL ]];
-      }
+      picker = [[UIDocumentPickerViewController alloc]
+          initForOpeningContentTypes:@[ UTTypeFolder ]];
+      picker.allowsMultipleSelection = NO;
     }
 
     if (!picker) {
@@ -1013,6 +1004,7 @@ GHOST_TSuccess GHOST_SystemIOS::showNativeFileDialog(const char *title,
      * We use objc_setAssociatedObject to tie its lifetime to the picker. */
     GHOST_IOSFilePickerDelegate *delegate = [[GHOST_IOSFilePickerDelegate alloc] init];
     delegate.ghostSystem = this;
+    delegate.defaultFilename = saveFilename;
     picker.delegate = delegate;
     picker.presentationController.delegate = delegate;
 
