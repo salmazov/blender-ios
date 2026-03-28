@@ -319,9 +319,9 @@ void ShaderCache::load_kernel(DeviceKernel device_kernel,
       }
 #    endif
 #  else
-      /* iOS: No API to query max compiler threads, but Apple A-series/M-series chips
-       * handle 4 concurrent compilations well. */
-      max_mtlcompiler_threads = 4;
+      /* iOS: Serialize shader compilation to minimize peak memory usage.
+       * Concurrent compilations risk jetsam (OS killing the MTLCompiler service). */
+      max_mtlcompiler_threads = 1;
 #  endif
 
       metal_printf("Spawning %d Cycles kernel compilation threads", max_mtlcompiler_threads);
@@ -410,7 +410,12 @@ MetalKernelPipeline *ShaderCache::get_best_pipeline(DeviceKernel kernel, const M
 bool MetalKernelPipeline::should_use_binary_archive() const
 {
 #  ifdef WITH_APPLE_CROSSPLATFORM
-  return false;
+  /* Enable binary archives on iOS to avoid recompiling shaders every launch.
+   * Intersection functions with linked functions are still unsupported. */
+  if (use_metalrt && device_kernel_has_intersection(device_kernel)) {
+    return false;
+  }
+  return (pso_type == PSO_GENERIC);
 #  endif
   /* Issues with binary archives in older macOS versions. */
   if (@available(macOS 15.4, *)) {
@@ -806,6 +811,25 @@ void MetalKernelPipeline::compile()
 
     do_compilation();
   }
+
+#  ifdef WITH_APPLE_CROSSPLATFORM
+  /* iOS: Retry compilation after jetsam. The Metal compiler service can be killed by the OS
+   * under memory pressure, producing XPC_ERROR_CONNECTION_INVALID. Wait and retry to give the
+   * system time to reclaim memory and restart the compiler service. */
+  if (pipeline == nil && ShaderCache::running) {
+    const int max_retries = 2;
+    for (int retry = 0; retry < max_retries && pipeline == nil && ShaderCache::running; retry++) {
+      metal_printf("Retrying %s compilation (attempt %d/%d) after error...",
+                   device_kernel_as_string(device_kernel),
+                   retry + 1,
+                   max_retries);
+      std::this_thread::sleep_for(std::chrono::seconds(3));
+      recreate_archive = false;
+      pipelineOptions = MTLPipelineOptionNone;
+      do_compilation();
+    }
+  }
+#  endif
 
   double duration = time_dt() - starttime;
 

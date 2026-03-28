@@ -7,6 +7,10 @@
 #  include <map>
 #  include <mutex>
 
+#  ifdef WITH_APPLE_CROSSPLATFORM
+#    include <os/proc.h>
+#  endif
+
 #  include "device/metal/device.h"
 #  include "device/metal/device_impl.h"
 
@@ -596,10 +600,18 @@ bool MetalDevice::max_working_set_exceeded(const size_t safety_margin) const
 #  ifndef WITH_APPLE_CROSSPLATFORM
   size_t available = [mtlDevice recommendedMaxWorkingSetSize] - safety_margin;
 #  else
-  /* TEMP: iOS Working set in Bytes. Default to 6 GB.
-   * TODO: Do properly. */
-  size_t available = 6LL * 1024LL * 1024LL * 1024LL;
-  (void)safety_margin;
+  /* Query actual available memory on iOS. os_proc_available_memory() returns the amount
+   * of memory the process can allocate before being jetsammed. Also check the GPU working
+   * set recommendation.  Use the smaller of the two as the safe limit. */
+  size_t proc_avail = (size_t)os_proc_available_memory();
+  size_t gpu_working_set = (size_t)[mtlDevice recommendedMaxWorkingSetSize];
+  size_t available = std::min(proc_avail, gpu_working_set);
+  if (available > safety_margin) {
+    available -= safety_margin;
+  }
+  else {
+    available = 0;
+  }
 #  endif
   return (stats.mem_used > available);
 }

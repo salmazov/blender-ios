@@ -7,6 +7,10 @@
 #  include <algorithm>
 #  include <mutex>
 
+#  ifdef WITH_APPLE_CROSSPLATFORM
+#    include <os/proc.h>
+#  endif
+
 #  include "device/metal/queue.h"
 
 #  include "device/metal/device_impl.h"
@@ -268,8 +272,31 @@ int MetalDeviceQueue::num_concurrent_states(const size_t state_size) const
   size_t state_count = 4194304;
 
 #  ifdef WITH_APPLE_CROSSPLATFORM
-  /* Return minimal default working set.
-   * TODO: Tune based on device and runtime status on iOS. */
+  /* Dynamically size the working set based on available memory on iOS.
+   * Use 50% of the smaller of process-available and GPU-recommended memory
+   * to leave headroom for textures, scene data, and the OS. */
+  {
+    size_t proc_avail = (size_t)os_proc_available_memory();
+    size_t gpu_working_set = (size_t)[metal_device_->mtlDevice recommendedMaxWorkingSetSize];
+    size_t usable = std::min(proc_avail, gpu_working_set) / 2;
+    if (usable > stats_.mem_used) {
+      size_t headroom = usable - stats_.mem_used;
+      size_t safe_count = headroom / state_size;
+      if (safe_count >= 65536 && safe_count < state_count) {
+        metal_printf("iOS: Reducing state count %zu -> %zu (avail=%.0fMB, used=%.0fMB)",
+                     state_count,
+                     safe_count,
+                     double(usable) / (1024 * 1024),
+                     double(stats_.mem_used) / (1024 * 1024));
+        state_count = safe_count;
+      }
+    }
+    else {
+      /* Very tight memory — use minimum viable state count. */
+      metal_printf("iOS: Memory critically low, using minimum state count 65536");
+      state_count = 65536;
+    }
+  }
   return state_count;
 #  endif
 
