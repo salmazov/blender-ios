@@ -29,6 +29,73 @@ Development
 - [Developer Documentation](https://developer.blender.org/docs/)
 
 
+Building for iPad (iOS)
+-----------------------
+
+### Prerequisites
+
+- macOS with Apple Silicon (arm64)
+- Xcode 26+ with iOS SDK
+- CMake 3.28+
+- Git LFS
+
+### Quick Start
+
+An automated setup script is included:
+
+```sh
+./setup_ios.sh
+```
+
+### Manual Build
+
+1. **Clone with LFS**
+
+   ```sh
+   GIT_LFS_SKIP_SMUDGE=1 git clone git@github.com:salmazov/blender-ios.git
+   cd blender-ios
+   git checkout ios-new
+   git lfs pull
+   ```
+
+2. **Fetch prebuilt libraries**
+
+   ```sh
+   git submodule update --init lib/ios_arm64
+   git submodule update --init lib/macos_arm64
+   ```
+
+3. **Configure with CMake**
+
+   ```sh
+   IOS_LIBDIR="$(pwd)/lib/ios_arm64"
+   IOS_DEV_ROOT="$IOS_LIBDIR/iossdk"
+
+   cmake -G Xcode -S . -B build_ios \
+     -DCMAKE_SYSTEM_NAME=iOS \
+     -DCMAKE_OSX_ARCHITECTURES=arm64 \
+     -DWITH_APPLE_CROSSPLATFORM=ON \
+     -DAPPLE_TARGET_DEVICE=ios \
+     -DCMAKE_FIND_ROOT_PATH="$IOS_DEV_ROOT;$(dirname "$IOS_DEV_ROOT");$IOS_LIBDIR" \
+     -DCMAKE_OSX_DEPLOYMENT_TARGET=17.0
+   ```
+
+4. **Build with Xcode**
+
+   Open `build_ios/Blender.xcodeproj` in Xcode, select your iPad as the destination, and build the **blender** scheme.
+
+   Or build from the command line:
+
+   ```sh
+   cd build_ios
+   xcodebuild -project Blender.xcodeproj -scheme blender \
+     -configuration Release -sdk iphoneos \
+     -jobs $(sysctl -n hw.ncpu) build
+   ```
+
+5. **Deploy** — connect your iPad and run from Xcode (requires a valid signing identity).
+
+
 License
 -------
 
