@@ -272,6 +272,13 @@ typedef struct UserInputEvent {
   UIHoverGestureRecognizer *mouse_hover_recognizer;
   /** Tracks which mouse buttons are currently held (bitmask of UIEventButtonMask values). */
   UIEventButtonMask mouse_buttons_held;
+  /** Last known mouse cursor position (scaled to window pixels). */
+  int32_t mouse_cursor_x;
+  int32_t mouse_cursor_y;
+  /** True once we have a valid cursor position from hover or touch. */
+  bool mouse_cursor_valid;
+  /** True while GCMouse middle button is held (for drag tracking). */
+  bool mouse_middle_held;
 
   /* Data from the Apple pencil */
   UITouch *current_pencil_touch;
@@ -334,6 +341,10 @@ typedef struct UserInputEvent {
   toolbar = nil;
   last_tap_with_pencil = false;
   mouse_buttons_held = 0;
+  mouse_cursor_x = 0;
+  mouse_cursor_y = 0;
+  mouse_cursor_valid = false;
+  mouse_middle_held = false;
   external_keyboard_connected = [GCKeyboard coalescedKeyboard] != nil;
 
   /* Register for notifications of chnanges to the onscreen keyboard. */
@@ -699,12 +710,17 @@ typedef struct UserInputEvent {
         CGFloat scale = [window->getView() contentScaleFactor];
         loc.x *= scale;
         loc.y *= scale;
+
+        mouse_cursor_x = (int32_t)loc.x;
+        mouse_cursor_y = (int32_t)loc.y;
+
         system->pushEvent(std::make_unique<GHOST_EventCursor>(system->getMilliSeconds(),
                                                 GHOST_kEventCursorMove,
                                                 window,
-                                                loc.x,
-                                                loc.y,
+                                                mouse_cursor_x,
+                                                mouse_cursor_y,
                                                 GHOST_TABLET_DATA_NONE));
+        system->notifyExternalEventProcessed();
         return;
       }
     }
@@ -748,14 +764,18 @@ typedef struct UserInputEvent {
         loc.x *= scale;
         loc.y *= scale;
 
+        mouse_cursor_x = (int32_t)loc.x;
+        mouse_cursor_y = (int32_t)loc.y;
+
         system->pushEvent(std::make_unique<GHOST_EventCursor>(system->getMilliSeconds(),
                                                 GHOST_kEventCursorMove,
                                                 window,
-                                                loc.x,
-                                                loc.y,
+                                                mouse_cursor_x,
+                                                mouse_cursor_y,
                                                 GHOST_TABLET_DATA_NONE));
 
-        /* Release all buttons that were held. */
+        /* Release buttons that were held (left / right).
+         * Middle button is handled via GCMouse. */
         if (mouse_buttons_held & UIEventButtonMaskPrimary) {
           system->pushEvent(std::make_unique<GHOST_EventButton>(system->getMilliSeconds(),
                                                   GHOST_kEventButtonUp,
@@ -770,14 +790,8 @@ typedef struct UserInputEvent {
                                                   GHOST_kButtonMaskRight,
                                                   GHOST_TABLET_DATA_NONE));
         }
-        if (mouse_buttons_held & (1 << 2)) {
-          system->pushEvent(std::make_unique<GHOST_EventButton>(system->getMilliSeconds(),
-                                                  GHOST_kEventButtonUp,
-                                                  window,
-                                                  GHOST_kButtonMaskMiddle,
-                                                  GHOST_TABLET_DATA_NONE));
-        }
         mouse_buttons_held = 0;
+        system->notifyExternalEventProcessed();
         return;
       }
     }
@@ -812,14 +826,8 @@ typedef struct UserInputEvent {
                                                   GHOST_kButtonMaskRight,
                                                   GHOST_TABLET_DATA_NONE));
         }
-        if (mouse_buttons_held & (1 << 2)) {
-          system->pushEvent(std::make_unique<GHOST_EventButton>(system->getMilliSeconds(),
-                                                  GHOST_kEventButtonUp,
-                                                  window,
-                                                  GHOST_kButtonMaskMiddle,
-                                                  GHOST_TABLET_DATA_NONE));
-        }
         mouse_buttons_held = 0;
+        system->notifyExternalEventProcessed();
         return;
       }
     }
@@ -1144,24 +1152,29 @@ typedef struct UserInputEvent {
     loc.x *= scale;
     loc.y *= scale;
 
+    mouse_cursor_x = (int32_t)loc.x;
+    mouse_cursor_y = (int32_t)loc.y;
+    mouse_cursor_valid = true;
+
     system->pushEvent(std::make_unique<GHOST_EventCursor>(system->getMilliSeconds(),
                                             GHOST_kEventCursorMove,
                                             window,
-                                            loc.x,
-                                            loc.y,
+                                            mouse_cursor_x,
+                                            mouse_cursor_y,
                                             GHOST_TABLET_DATA_NONE));
+    system->notifyExternalEventProcessed();
   }
 }
 
 /**
- * UIPointerInteractionDelegate — hide the iPadOS pointer dot inside the Blender viewport.
- * Returning a hidden style makes the system pointer invisible so Blender's
- * own cursor rendering (or just the content) takes over.
+ * UIPointerInteractionDelegate — return nil to keep the default system pointer
+ * visible at all times. This ensures the cursor renders above all UI elements
+ * (viewport, panels, menus) like a desktop mouse.
  */
 - (UIPointerStyle *)pointerInteraction:(UIPointerInteraction *)interaction
                         styleForRegion:(UIPointerRegion *)region API_AVAILABLE(ios(13.4))
 {
-  return [UIPointerStyle hiddenPointerStyle];
+  return nil;
 }
 
 /**
@@ -1193,6 +1206,10 @@ typedef struct UserInputEvent {
         loc.x *= scale;
         loc.y *= scale;
 
+        mouse_cursor_x = (int32_t)loc.x;
+        mouse_cursor_y = (int32_t)loc.y;
+        mouse_cursor_valid = true;
+
         UIEventButtonMask mask = event.buttonMask;
         mouse_buttons_held = mask;
 
@@ -1200,8 +1217,8 @@ typedef struct UserInputEvent {
         system->pushEvent(std::make_unique<GHOST_EventCursor>(system->getMilliSeconds(),
                                                 GHOST_kEventCursorMove,
                                                 window,
-                                                loc.x,
-                                                loc.y,
+                                                mouse_cursor_x,
+                                                mouse_cursor_y,
                                                 GHOST_TABLET_DATA_NONE));
         if (mask & UIEventButtonMaskPrimary) {
           system->pushEvent(std::make_unique<GHOST_EventButton>(system->getMilliSeconds(),
@@ -1217,14 +1234,9 @@ typedef struct UserInputEvent {
                                                   GHOST_kButtonMaskRight,
                                                   GHOST_TABLET_DATA_NONE));
         }
-        if (mask & (1 << 2)) {
-          /* Middle button (bit 2 in UIEventButtonMask). */
-          system->pushEvent(std::make_unique<GHOST_EventButton>(system->getMilliSeconds(),
-                                                  GHOST_kEventButtonDown,
-                                                  window,
-                                                  GHOST_kButtonMaskMiddle,
-                                                  GHOST_TABLET_DATA_NONE));
-        }
+        /* Middle button is handled via GCMouse — not reliably exposed in
+         * UIEvent.buttonMask on all iPadOS devices. */
+        system->notifyExternalEventProcessed();
         return;
       }
     }
@@ -1232,12 +1244,81 @@ typedef struct UserInputEvent {
 }
 
 /**
- * Set up scroll-wheel handler on a GCMouse.
+ * Set up GCMouse handlers for middle button and scroll wheel.
+ * Left/right buttons are handled via UITouch (UITouchTypeIndirectPointer)
+ * but middle button is only reliably available through GameController.
  */
 - (void)setupGCMouse:(GCMouse *)mouse API_AVAILABLE(ios(14.0))
 {
   /* Use __unsafe_unretained since GHOST is compiled without ARC. */
   __unsafe_unretained typeof(self) weakSelf = self;
+
+  /* --- Middle button for 3D viewport orbit --- */
+  mouse.mouseInput.middleButton.pressedChangedHandler = ^(
+      GCControllerButtonInput *_Nonnull button, float value, BOOL pressed) {
+    typeof(self) strongSelf = weakSelf;
+    if (!strongSelf) {
+      return;
+    }
+
+    if (pressed) {
+      strongSelf->mouse_middle_held = true;
+      /* Send cursor position + middle button down. */
+      if (strongSelf->mouse_cursor_valid) {
+        strongSelf->system->pushEvent(std::make_unique<GHOST_EventCursor>(
+            strongSelf->system->getMilliSeconds(),
+            GHOST_kEventCursorMove,
+            strongSelf->window,
+            strongSelf->mouse_cursor_x,
+            strongSelf->mouse_cursor_y,
+            GHOST_TABLET_DATA_NONE));
+      }
+      strongSelf->system->pushEvent(std::make_unique<GHOST_EventButton>(
+          strongSelf->system->getMilliSeconds(),
+          GHOST_kEventButtonDown,
+          strongSelf->window,
+          GHOST_kButtonMaskMiddle,
+          GHOST_TABLET_DATA_NONE));
+    }
+    else {
+      strongSelf->mouse_middle_held = false;
+      strongSelf->system->pushEvent(std::make_unique<GHOST_EventButton>(
+          strongSelf->system->getMilliSeconds(),
+          GHOST_kEventButtonUp,
+          strongSelf->window,
+          GHOST_kButtonMaskMiddle,
+          GHOST_TABLET_DATA_NONE));
+    }
+    strongSelf->system->notifyExternalEventProcessed();
+  };
+
+  /* --- Mouse movement (delta) for orbit drag while middle button is held --- */
+  mouse.mouseInput.mouseMovedHandler = ^(
+      GCMouseInput *_Nonnull mouseInput, float deltaX, float deltaY) {
+    typeof(self) strongSelf = weakSelf;
+    if (!strongSelf) {
+      return;
+    }
+
+    /* Only track delta-based movement when middle button is held
+     * (no UITouch events are generated for middle-click drag). */
+    if (strongSelf->mouse_middle_held && strongSelf->mouse_cursor_valid) {
+      CGFloat scale = [strongSelf->window->getView() contentScaleFactor];
+      strongSelf->mouse_cursor_x += (int32_t)(deltaX * scale);
+      strongSelf->mouse_cursor_y -= (int32_t)(deltaY * scale); /* Y is inverted. */
+
+      strongSelf->system->pushEvent(std::make_unique<GHOST_EventCursor>(
+          strongSelf->system->getMilliSeconds(),
+          GHOST_kEventCursorMove,
+          strongSelf->window,
+          strongSelf->mouse_cursor_x,
+          strongSelf->mouse_cursor_y,
+          GHOST_TABLET_DATA_NONE));
+      strongSelf->system->notifyExternalEventProcessed();
+    }
+  };
+
+  /* --- Scroll wheel --- */
   mouse.mouseInput.scroll.valueChangedHandler = ^(
       GCControllerDirectionPad *_Nonnull dpad, float xValue, float yValue) {
     typeof(self) strongSelf = weakSelf;
@@ -1246,23 +1327,33 @@ typedef struct UserInputEvent {
     }
 
     /* Convert GCMouse scroll deltas to GHOST wheel events.
-     * yValue > 0 = scroll up (away from user), yValue < 0 = scroll down. */
-    if (fabsf(yValue) > 0.001f) {
-      int32_t ticks = (yValue > 0) ? 1 : -1;
+     * Use yValue for vertical zoom; fall back to xValue as vertical
+     * when yValue is zero (some Bluetooth mice only report on xAxis). */
+    float vertical = yValue;
+    float horizontal = xValue;
+    if (fabsf(yValue) < 0.001f && fabsf(xValue) > 0.001f) {
+      /* Only horizontal reported — treat as vertical scroll (zoom). */
+      vertical = xValue;
+      horizontal = 0.0f;
+    }
+
+    if (fabsf(vertical) > 0.001f) {
+      int32_t ticks = (vertical > 0) ? 1 : -1;
       strongSelf->system->pushEvent(std::make_unique<GHOST_EventWheel>(
           strongSelf->system->getMilliSeconds(),
           strongSelf->window,
           GHOST_kEventWheelAxisVertical,
           ticks));
     }
-    if (fabsf(xValue) > 0.001f) {
-      int32_t ticks = (xValue > 0) ? 1 : -1;
+    if (fabsf(horizontal) > 0.001f) {
+      int32_t ticks = (horizontal > 0) ? 1 : -1;
       strongSelf->system->pushEvent(std::make_unique<GHOST_EventWheel>(
           strongSelf->system->getMilliSeconds(),
           strongSelf->window,
           GHOST_kEventWheelAxisHorizontal,
           ticks));
     }
+    strongSelf->system->notifyExternalEventProcessed();
   };
 }
 
