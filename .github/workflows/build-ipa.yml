@@ -1,0 +1,63 @@
+name: Build Blender iOS IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ios-new
+          fetch-depth: 1
+
+      - name: Install dependencies
+        run: |
+          brew install cmake git-lfs
+          git lfs install
+
+      - name: Fetch precompiled libs
+        run: |
+          cd ..
+          git clone https://projects.blender.org/blender/lib.git --depth 1 --branch main lib/ios
+
+      - name: Configure CMake for iOS
+        run: |
+          mkdir ../build_ios
+          cmake . -B ../build_ios \
+            -DCMAKE_SYSTEM_NAME=iOS \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
+            -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY="" \
+            -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED=NO \
+            -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=NO \
+            -G Xcode
+
+      - name: Build
+        run: |
+          cd ../build_ios
+          xcodebuild \
+            -project Blender.xcodeproj \
+            -scheme Blender \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            CODE_SIGNING_ALLOWED=NO \
+            ONLY_ACTIVE_ARCH=NO \
+            build
+
+      - name: Package IPA
+        run: |
+          cd ../build_ios
+          mkdir -p Payload
+          cp -r Release-iphoneos/Blender.app Payload/
+          zip -r Blender.ipa Payload/
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Blender-iOS
+          path: ../build_ios/Blender.ipa
+          retention-days: 7
