@@ -423,9 +423,13 @@ endif()
 string(APPEND PLATFORM_CFLAGS " -pipe -funsigned-char -fno-strict-aliasing -ffp-contract=off")
 
 if(WITH_APPLE_CROSSPLATFORM)
-  # Link different frameworks for iOS
+  # Link different frameworks for iOS.
+  # `-ObjC` is required so the linker keeps object files that only contain Objective-C
+  # categories (e.g. `GHOSTUIWindow (Keyboard)` in GHOST_KeyboardIOS.mm). Without it those
+  # are dropped from the static library and calls fail at runtime with
+  # "unrecognized selector sent to instance".
   set(PLATFORM_LINKFLAGS
-    "-fexceptions -framework CoreServices -framework Foundation -framework IOKit -framework UIKit -framework AudioToolbox -framework CoreAudio -framework Metal -framework MetalKit -framework QuartzCore -framework ImageIO -framework GameController -framework CoreGraphics -framework UniformTypeIdentifiers"
+    "-fexceptions -ObjC -framework CoreServices -framework Foundation -framework IOKit -framework UIKit -framework AudioToolbox -framework CoreAudio -framework Metal -framework MetalKit -framework QuartzCore -framework ImageIO -framework GameController -framework CoreGraphics -framework UniformTypeIdentifiers"
   )
   list(APPEND PLATFORM_LINKLIBS "${LIBDIR}/libb2/lib/libb2.a")
 else()
