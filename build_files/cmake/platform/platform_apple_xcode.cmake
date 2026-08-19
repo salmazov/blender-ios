@@ -339,6 +339,10 @@ if(NOT ${CMAKE_GENERATOR} MATCHES "Xcode")
   string(APPEND CMAKE_C_FLAGS " ${APPLE_OS_MINVERSION_CFLAG}")
   string(APPEND CMAKE_CXX_FLAGS " ${APPLE_OS_MINVERSION_CFLAG}")
   add_definitions("-DMACOSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}")
+elseif(APPLE_TARGET_IOS)
+  # Xcode otherwise defaults the deployment target to the SDK version. That both drifts
+  # with the installed Xcode and hides availability errors that other generators catch.
+  set(CMAKE_XCODE_ATTRIBUTE_IPHONEOS_DEPLOYMENT_TARGET ${OSX_MIN_DEPLOYMENT_TARGET})
 endif()
 
 if(WITH_COMPILER_CCACHE)
