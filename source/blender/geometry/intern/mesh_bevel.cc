@@ -1480,6 +1480,15 @@ static float sabin_gamma(int n)
 
 namespace debug {
 
+/* bli_debug_println() is unavailable in the older fmt (9.1) bundled inside OIIO on iOS;
+ * this local helper works with any fmt version used by Blender. */
+template<typename... Args>
+static void bli_debug_println(fmt::format_string<Args...> fmt_str, Args &&...args)
+{
+  fmt::print(fmt_str, std::forward<Args>(args)...);
+  fmt::print("\n");
+}
+
 /* Prints a Span of a printable type, 10 items per line.
  * Each line is prefixed with the starting index in brackets.
  * A label line is printed before the span. */
@@ -1495,7 +1504,7 @@ template<typename T> [[maybe_unused]] static void print_span(Span<T> span, const
     }
     fmt::print("{} ", span[i]);
   }
-  fmt::println("");
+  bli_debug_println("");
 }
 
 /* Prints a single float3 as "(x,y,z)" with no trailing newline. */
@@ -1518,7 +1527,7 @@ template<typename T> [[maybe_unused]] static void print_span(Span<T> span, const
     print_float3(span[i]);
     fmt::print(" ");
   }
-  fmt::println("");
+  bli_debug_println("");
 }
 
 /* Prints a single int2 pair as "(a,b)" with no trailing newline. */
@@ -1541,7 +1550,7 @@ template<typename T> [[maybe_unused]] static void print_span(Span<T> span, const
     print_int2(span[i]);
     fmt::print(" ");
   }
-  fmt::println("");
+  bli_debug_println("");
 }
 
 /* Prints a single IndexRange as "[first..last]" or "[]" if empty, with no trailing newline. */
@@ -1562,13 +1571,13 @@ template<typename T> [[maybe_unused]] static void print_span(Span<T> span, const
   if (groupedspan.size() == 0) {
     return;
   }
-  fmt::println("{}:", label);
+  bli_debug_println("{}:", label);
   for (const int i : groupedspan.index_range()) {
     fmt::print("[{}] ", i);
     for (int v : groupedspan[i]) {
       fmt::print("{} ", v);
     }
-    fmt::println("");
+    bli_debug_println("");
   }
 }
 
@@ -1604,14 +1613,14 @@ template<typename T> [[maybe_unused]] static void print_span(Span<T> span, const
   print_float3(prof.middle);
   fmt::print(" end=");
   print_float3(prof.end);
-  fmt::println("");
+  bli_debug_println("");
   fmt::print("    plane_no=");
   print_float3(prof.plane_no);
   fmt::print(" plane_co=");
   print_float3(prof.plane_co);
   fmt::print(" proj_dir=");
   print_float3(prof.proj_dir);
-  fmt::println("");
+  bli_debug_println("");
   if (!prof.prof_co.is_empty()) {
     print_float3_span(prof.prof_co, "    prof_co");
   }
@@ -1620,18 +1629,18 @@ template<typename T> [[maybe_unused]] static void print_span(Span<T> span, const
 /* Prints a single #EdgeHalf's fields. */
 [[maybe_unused]] static void dump_edge_half(const EdgeHalf &eh, const int index)
 {
-  fmt::println("  EdgeHalf[{}]: e={} fprev={} fnext={}", index, eh.e, eh.fprev, eh.fnext);
-  fmt::println("    offset_l={} offset_r={} offset_l_spec={} offset_r_spec={}",
+  bli_debug_println("  EdgeHalf[{}]: e={} fprev={} fnext={}", index, eh.e, eh.fprev, eh.fnext);
+  bli_debug_println("    offset_l={} offset_r={} offset_l_spec={} offset_r_spec={}",
                eh.offset_l,
                eh.offset_r,
                eh.offset_l_spec,
                eh.offset_r_spec);
-  fmt::println("    is_bev={} is_rev={} is_seam={} visited_rpo={}",
+  bli_debug_println("    is_bev={} is_rev={} is_seam={} visited_rpo={}",
                eh.is_bev,
                eh.is_rev,
                eh.is_seam,
                eh.visited_rpo);
-  fmt::println("    leftv={} rightv={}",
+  bli_debug_println("    leftv={} rightv={}",
                eh.leftv ? eh.leftv->index : -1,
                eh.rightv ? eh.rightv->index : -1);
 }
@@ -1641,27 +1650,27 @@ template<typename T> [[maybe_unused]] static void print_span(Span<T> span, const
 {
   fmt::print("  BoundVert[{}]: co=", bndv.index);
   print_float3(bndv.nv.co);
-  fmt::println("");
-  fmt::println("    efirst={} elast={} ebev={}",
+  bli_debug_println("");
+  bli_debug_println("    efirst={} elast={} ebev={}",
                bndv.efirst ? bndv.efirst->e : -1,
                bndv.elast ? bndv.elast->e : -1,
                bndv.ebev ? bndv.ebev->e : -1);
-  fmt::println("    any_seam={} visited={}", bndv.any_seam, bndv.visited);
-  fmt::println("    is_arc_start={} is_patch_start={} is_profile_start={}",
+  bli_debug_println("    any_seam={} visited={}", bndv.any_seam, bndv.visited);
+  bli_debug_println("    is_arc_start={} is_patch_start={} is_profile_start={}",
                bndv.is_arc_start,
                bndv.is_patch_start,
                bndv.is_profile_start);
-  fmt::println("    seam_len={} sharp_len={}", bndv.seam_len, bndv.sharp_len);
+  bli_debug_println("    seam_len={} sharp_len={}", bndv.seam_len, bndv.sharp_len);
   dump_profile(bndv.profile);
 }
 
 /* Prints a #VMesh and all its #BoundVert chain, plus the full #NewVert grid. */
 [[maybe_unused]] static void dump_vmesh(const VMesh &vm)
 {
-  fmt::println(
+  bli_debug_println(
       "  VMesh: count={} seg={} mesh_kind={}", vm.count, vm.seg, mesh_kind_name(vm.mesh_kind));
   if (vm.boundstart == nullptr) {
-    fmt::println("  (no boundverts)");
+    bli_debug_println("  (no boundverts)");
     return;
   }
   /* Walk the circular linked list of BoundVerts. */
@@ -1678,7 +1687,7 @@ template<typename T> [[maybe_unused]] static void print_span(Span<T> span, const
     const int ns2 = ns / 2;
     /* Non-const pointer needed by mesh_vert (accessor is not const-qualified). */
     VMesh *vmp = const_cast<VMesh *>(&vm);
-    fmt::println("  NewVerts (i, j, k) for 0<=i<{} 0<=j<={} 0<=k<{}:", n, ns2, ns);
+    bli_debug_println("  NewVerts (i, j, k) for 0<=i<{} 0<=j<={} 0<=k<{}:", n, ns2, ns);
     for (int i = 0; i < n; i++) {
       for (int j = 0; j <= ns2; j++) {
         fmt::print("    ({},{}): ", i, j);
@@ -1686,7 +1695,7 @@ template<typename T> [[maybe_unused]] static void print_span(Span<T> span, const
           const NewVert *nv = geom::mesh_vert(vmp, i, j, k);
           fmt::print("({},({:.3f},{:.3f},{:.3f})) ", nv->v, nv->co[0], nv->co[1], nv->co[2]);
         }
-        fmt::println("");
+        bli_debug_println("");
       }
     }
   }
@@ -1695,15 +1704,15 @@ template<typename T> [[maybe_unused]] static void print_span(Span<T> span, const
 /* Dumps a full #BevVert, including its #EdgeHalf array, wire edges, and #VMesh. */
 [[maybe_unused]] static void dump_bev_vert(const BevVert &bv)
 {
-  fmt::println("BevVert: v={} edgecount={} selcount={} wirecount={}",
+  bli_debug_println("BevVert: v={} edgecount={} selcount={} wirecount={}",
                bv.v,
                bv.edgecount,
                bv.selcount,
                bv.wirecount);
-  fmt::println("  offset={} any_seam={} visited={}", bv.offset, bv.any_seam, bv.visited);
+  bli_debug_println("  offset={} any_seam={} visited={}", bv.offset, bv.any_seam, bv.visited);
 
   /* Print the EdgeHalf array. */
-  fmt::println("  edges ({}):", bv.edges.size());
+  bli_debug_println("  edges ({}):", bv.edges.size());
   for (const int i : bv.edges.index_range()) {
     dump_edge_half(bv.edges[i], i);
   }
@@ -1718,7 +1727,7 @@ template<typename T> [[maybe_unused]] static void print_span(Span<T> span, const
     dump_vmesh(*bv.vmesh);
   }
   else {
-    fmt::println("  (no vmesh)");
+    bli_debug_println("  (no vmesh)");
   }
 }
 
@@ -1742,7 +1751,7 @@ template<typename T> [[maybe_unused]] static void print_span(Span<T> span, const
   }
   const int ns = vm->seg;
 
-  fmt::println("  Edge polygons for bv={}:", bv.v);
+  bli_debug_println("  Edge polygons for bv={}:", bv.v);
 
   for (int ei = 0; ei < bv.edgecount; ei++) {
     const EdgeHalf &eh = bv.edges[ei];
@@ -1750,7 +1759,7 @@ template<typename T> [[maybe_unused]] static void print_span(Span<T> span, const
       continue;
     }
     const int i = eh.leftv->index;
-    fmt::println("    EdgeHalf[{}] e={} i={}:", ei, eh.e, i);
+    bli_debug_println("    EdgeHalf[{}] e={} i={}:", ei, eh.e, i);
 
     for (int k = 0; k < ns; k++) {
       /* The two boundary verts on this endpoint's ring. */
@@ -1789,11 +1798,11 @@ template<typename T> [[maybe_unused]] static void print_span(Span<T> span, const
             const int ce = emesh.corner_edge(c);
             fmt::print(" [c={} v={} e={}]", c, cv, ce);
           }
-          fmt::println("");
+          bli_debug_println("");
         }
       }
       if (!found) {
-        fmt::println("      k={} va={} vb={}: no matching face found", k, va, vb);
+        bli_debug_println("      k={} va={} vb={}: no matching face found", k, va, vb);
       }
     }
   }
@@ -1814,7 +1823,7 @@ template<typename T> [[maybe_unused]] static void print_span(Span<T> span, const
     const float3 co = emesh.vert_position(v);
     fmt::print(" [v={} e={} co=({:.3f},{:.3f},{:.3f})]", v, e, co[0], co[1], co[2]);
   }
-  fmt::println("");
+  bli_debug_println("");
 }
 
 /**
@@ -1826,7 +1835,7 @@ template<typename T> [[maybe_unused]] static void print_span(Span<T> span, const
 {
   const ExtendableMesh &emesh = state.emesh;
   const int n_new = emesh.new_faces_num();
-  fmt::println("MESH new face examples ({} new faces):", n_new);
+  bli_debug_println("MESH new face examples ({} new faces):", n_new);
   const Span<int> exs = emesh.new_face_examples();
   const uv::UVMapInfo &uvi = state.uv_layer_info;
   for (int i = 0; i < n_new; i++) {
@@ -1835,7 +1844,7 @@ template<typename T> [[maybe_unused]] static void print_span(Span<T> span, const
     if (ex >= 0 && ex < emesh.mesh.faces_num) {
       const int comp = (!uvi.face_component.is_empty()) ? uvi.face_component[ex] : -1;
       const float3 cent = state.face_center(ex);
-      fmt::println("  new_face={} example={} comp={} center=({:.3f},{:.3f},{:.3f})",
+      bli_debug_println("  new_face={} example={} comp={} center=({:.3f},{:.3f},{:.3f})",
                    face_idx,
                    ex,
                    comp,
@@ -1844,7 +1853,7 @@ template<typename T> [[maybe_unused]] static void print_span(Span<T> span, const
                    cent[2]);
     }
     else {
-      fmt::println("  new_face={} example={}", face_idx, ex);
+      bli_debug_println("  new_face={} example={}", face_idx, ex);
     }
   }
 }
@@ -1859,12 +1868,12 @@ template<typename T> [[maybe_unused]] static void print_span(Span<T> span, const
   const ExtendableMesh &emesh = state.emesh;
   const Span<int2> new_edges = emesh.new_edges();
   const int n_new = int(new_edges.size());
-  fmt::println("MESH new edge examples ({} new edges):", n_new);
+  bli_debug_println("MESH new edge examples ({} new edges):", n_new);
   const Span<int> exs = emesh.new_edge_examples();
   for (int i = 0; i < n_new; i++) {
     const int edge_idx = emesh.mesh.edges_num + i;
     const int ex = (i < int(exs.size())) ? exs[i] : -1;
-    fmt::println(
+    bli_debug_println(
         "  new_edge={} (v{}--v{}) example={}", edge_idx, new_edges[i][0], new_edges[i][1], ex);
   }
 }
@@ -4404,14 +4413,14 @@ static int bevel_build_poly(BevelState &state, BevVert *bv)
   state.emesh.face_set_corner_reps(new_face, corner_reps.as_span(), corner_snaps.as_span());
 #ifdef BEVEL_DEBUG
   {
-    fmt::println("bevel_build_poly: bv->v={} any_seam={} frep={} ns={} n_verts={}",
+    bli_debug_println("bevel_build_poly: bv->v={} any_seam={} frep={} ns={} n_verts={}",
                  bv->v,
                  bv->any_seam,
                  frep,
                  ns,
                  int(verts.size()));
     for (int ci = 0; ci < int(verts.size()); ci++) {
-      fmt::println(
+      bli_debug_println(
           "  corner[{}] v={} rep={} snap={}", ci, verts[ci], corner_reps[ci], corner_snaps[ci]);
     }
   }
@@ -5264,7 +5273,7 @@ static void bevel_build_edge_polygons(BevelState &state, const int edge_index)
     }
 #ifdef BEVEL_DEBUG
     {
-      fmt::println(
+      bli_debug_println(
           "bevel_build_edge_polygons: edge={} k={}/{} f1={} f2={} is_seam={} face_rep={} "
           "verts=[{},{},{},{}] creps=[{},{},{},{}] csnaps=[{},{},{},{}]",
           edge_index,
@@ -7697,7 +7706,7 @@ std::optional<Mesh *> mesh_bevel(const Mesh &src_mesh,
   }
 
 #ifdef DEBUG_TIME
-  fmt::println("BEVEL NODE starts");
+  bli_debug_println("BEVEL NODE starts");
   const timeit::TimePoint start_time = timeit::Clock::now();
 #endif
   BevelState state(src_mesh, params, selection);
@@ -7710,7 +7719,7 @@ std::optional<Mesh *> mesh_bevel(const Mesh &src_mesh,
   state.bev_verts.reserve(state.bevel_affected_vertices.size());
 #ifdef DEBUG_TIME
   const timeit::TimePoint init_time = timeit::Clock::now();
-  fmt::println("BEVEL NODE initialization, {:.4} ms", (init_time - start_time).count() / 1.0e6f);
+  bli_debug_println("BEVEL NODE initialization, {:.4} ms", (init_time - start_time).count() / 1.0e6f);
 #endif
 
   /* Phase 1: construct BevVerts and build initial boundaries. */
@@ -7724,7 +7733,7 @@ std::optional<Mesh *> mesh_bevel(const Mesh &src_mesh,
 
 #ifdef DEBUG_TIME
   const timeit::TimePoint vert_and_boundaries_time = timeit::Clock::now();
-  fmt::println("BEVEL NODE bevel construct and build boundaries,{:.4} ms",
+  bli_debug_println("BEVEL NODE bevel construct and build boundaries,{:.4} ms",
                (vert_and_boundaries_time - init_time).count() / 1.0e6f);
 #endif
 
@@ -7736,7 +7745,7 @@ std::optional<Mesh *> mesh_bevel(const Mesh &src_mesh,
 
 #ifdef DEBUG_TIME
   const timeit::TimePoint adjust_time = timeit::Clock::now();
-  fmt::println("BEVEL NODE adjust offsets, {:.4} ms",
+  bli_debug_println("BEVEL NODE adjust offsets, {:.4} ms",
                (adjust_time - vert_and_boundaries_time).count() / 1.0e6f);
 #endif
 
@@ -7760,7 +7769,7 @@ std::optional<Mesh *> mesh_bevel(const Mesh &src_mesh,
 
 #ifdef DEBUG_TIME
   const timeit::TimePoint vmesh_and_uv_time = timeit::Clock::now();
-  fmt::println("BEVEL NODE vmesh and uv connectivity, {:.4} ms",
+  bli_debug_println("BEVEL NODE vmesh and uv connectivity, {:.4} ms",
                (vmesh_and_uv_time - vert_and_boundaries_time).count() / 1.0e6f);
 #endif
 
@@ -7772,7 +7781,7 @@ std::optional<Mesh *> mesh_bevel(const Mesh &src_mesh,
 
 #ifdef DEBUG_TIME
   const timeit::TimePoint edge_time = timeit::Clock::now();
-  fmt::println("BEVEL NODE edge mesh, {:.4} ms", (edge_time - vmesh_and_uv_time).count() / 1.0e6f);
+  bli_debug_println("BEVEL NODE edge mesh, {:.4} ms", (edge_time - vmesh_and_uv_time).count() / 1.0e6f);
 #endif
 
   /* Rebuild original faces that touch beveled vertices. */
@@ -7782,7 +7791,7 @@ std::optional<Mesh *> mesh_bevel(const Mesh &src_mesh,
 
 #ifdef DEBUG_TIME
   const timeit::TimePoint face_time = timeit::Clock::now();
-  fmt::println("BEVEL NODE face mesh, {:.4} ms", (face_time - edge_time).count() / 1.0e6f);
+  bli_debug_println("BEVEL NODE face mesh, {:.4} ms", (face_time - edge_time).count() / 1.0e6f);
 #endif
 
   /* Kill the original faces that were rebuilt, mirroring BMesh's deferred kill pattern. */
@@ -7806,14 +7815,14 @@ std::optional<Mesh *> mesh_bevel(const Mesh &src_mesh,
       const Span<int> ncv = state.emesh.new_corner_verts();
       for (int nf = 0; nf < state.emesh.new_faces_num(); nf++) {
         const IndexRange nc_range = new_faces[nf];
-        fmt::println("new_face[{}] (corners {}-{}):",
+        bli_debug_println("new_face[{}] (corners {}-{}):",
                      nf + state.emesh.mesh.faces_num,
                      nc_range.start(),
                      nc_range.last());
         for (const int uv_i : state.uv_layer_info.uv_maps.index_range()) {
           const Span<float2> new_uv = state.emesh.new_corner_uvs(uv_i);
           for (const int nc : nc_range) {
-            fmt::println("  uv_i={} corner={} v={} uv=({:.5f},{:.5f})",
+            bli_debug_println("  uv_i={} corner={} v={} uv=({:.5f},{:.5f})",
                          uv_i,
                          nc,
                          ncv[nc],
@@ -7827,7 +7836,7 @@ std::optional<Mesh *> mesh_bevel(const Mesh &src_mesh,
 #ifndef BEVEL_DEBUG_SKIP_MERGE_UVS
     construct::merge_uvs(state);
 #else
-    fmt::println("merge_uvs SKIPPED (BEVEL_DEBUG_SKIP_MERGE_UVS)");
+    bli_debug_println("merge_uvs SKIPPED (BEVEL_DEBUG_SKIP_MERGE_UVS)");
 #endif
   }
 
@@ -7835,7 +7844,7 @@ std::optional<Mesh *> mesh_bevel(const Mesh &src_mesh,
 
 #ifdef DEBUG_TIME
   const timeit::TimePoint uv_edge_data_time = timeit::Clock::now();
-  fmt::println("BEVEL NODE uvs and edge data, {:.4} ms",
+  bli_debug_println("BEVEL NODE uvs and edge data, {:.4} ms",
                (uv_edge_data_time - face_time).count() / 1.0e6f);
 #endif
 
@@ -7844,9 +7853,9 @@ std::optional<Mesh *> mesh_bevel(const Mesh &src_mesh,
 
 #ifdef DEBUG_TIME
   const timeit::TimePoint end_time = timeit::Clock::now();
-  fmt::println("BEVEL NODE construct output mesh, {:.4} ms",
+  bli_debug_println("BEVEL NODE construct output mesh, {:.4} ms",
                (end_time - uv_edge_data_time).count() / 1.0e6f);
-  fmt::println("BEVEL NODE total, {:5} ms", (end_time - start_time).count() / 1.0e6f);
+  bli_debug_println("BEVEL NODE total, {:5} ms", (end_time - start_time).count() / 1.0e6f);
 #endif
 
   return ans;
