@@ -20,10 +20,10 @@ static void format_duration(Nanoseconds duration, fmt::memory_buffer &buf)
 {
   using namespace std::chrono;
   if (duration < microseconds(100)) {
-    fmt::format_to(fmt::appender(buf), FMT_STRING("{} ns"), duration.count());
+    fmt::format_to(fmt::appender(buf), fmt::runtime("{} ns"), duration.count());
   }
   else if (duration < seconds(5)) {
-    fmt::format_to(fmt::appender(buf), FMT_STRING("{:.2f} ms"), duration.count() / 1.0e6);
+    fmt::format_to(fmt::appender(buf), fmt::runtime("{:.2f} ms"), duration.count() / 1.0e6);
   }
   else if (duration > seconds(90)) {
     /* Long durations: print seconds, and also H:m:s */
@@ -31,14 +31,14 @@ static void format_duration(Nanoseconds duration, fmt::memory_buffer &buf)
     const auto dur_mins = duration_cast<minutes>(duration - dur_hours);
     const auto dur_sec = duration_cast<seconds>(duration - dur_hours - dur_mins);
     fmt::format_to(fmt::appender(buf),
-                   FMT_STRING("{:.1f} s ({}H:{}m:{}s)"),
+                   fmt::runtime("{:.1f} s ({}H:{}m:{}s)"),
                    duration.count() / 1.0e9,
                    dur_hours.count(),
                    dur_mins.count(),
                    dur_sec.count());
   }
   else {
-    fmt::format_to(fmt::appender(buf), FMT_STRING("{:.1f} s"), duration.count() / 1.0e9);
+    fmt::format_to(fmt::appender(buf), fmt::runtime("{:.1f} s"), duration.count() / 1.0e9);
   }
 }
 
