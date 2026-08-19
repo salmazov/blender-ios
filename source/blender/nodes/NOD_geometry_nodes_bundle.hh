@@ -7,6 +7,7 @@
 #include "BKE_node.hh"
 #include "BKE_node_socket_value.hh"
 
+#include "BLI_fmt.hh"
 #include "BLI_memory_counter_fwd.hh"
 #include "BLI_ustring.hh"
 
@@ -504,3 +505,7 @@ inline std::string_view format_as(const BundleKey key)
 }
 
 }  // namespace blender::nodes
+
+/* `format_as()` above only works with fmt 12+ (desktop); fmt 9.1 (bundled inside OIIO on iOS)
+ * requires an explicit `fmt::formatter` specialization for class types. */
+BLI_FMT_FORMATTER_STRING_VIEW(blender::nodes::BundleKey, s.ustr().ref());
