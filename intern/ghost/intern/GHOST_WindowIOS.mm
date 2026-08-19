@@ -284,27 +284,19 @@ typedef struct UserInputEvent {
   }
 }
 
-- (CGPoint)scaledLocationOfTouch:(UITouch *)touch
+- (CGPoint)logicalLocationOfTouch:(UITouch *)touch
 {
-  CGPoint loc = [touch locationInView:window->getView()];
-  CGFloat scale = [window->getView() contentScaleFactor];
-  loc.x *= scale;
-  loc.y *= scale;
-  return loc;
+  return [touch locationInView:window->getView()];
 }
 
-- (CGPoint)scaledLocationOfGesture:(UIGestureRecognizer *)gesture
+- (CGPoint)logicalLocationOfGesture:(UIGestureRecognizer *)gesture
 {
-  CGPoint loc = [gesture locationInView:window->getView()];
-  CGFloat scale = [window->getView() contentScaleFactor];
-  loc.x *= scale;
-  loc.y *= scale;
-  return loc;
+  return [gesture locationInView:window->getView()];
 }
 
 - (void)updateMouseCursorFromTouch:(UITouch *)touch
 {
-  CGPoint loc = [self scaledLocationOfTouch:touch];
+  CGPoint loc = [self logicalLocationOfTouch:touch];
   mouse_cursor_x = (int32_t)loc.x;
   mouse_cursor_y = (int32_t)loc.y;
 }
@@ -1002,7 +994,7 @@ typedef struct UserInputEvent {
 
 - (void)handleLongPress:(UILongPressGestureRecognizer *)sender
 {
-  CGPoint touch_point = [self scaledLocationOfGesture:sender];
+  CGPoint touch_point = [self logicalLocationOfGesture:sender];
 
   if (sender.state == UIGestureRecognizerStateBegan) {
     /* Move cursor to long-press location, then send right-click down. */
@@ -1043,7 +1035,7 @@ typedef struct UserInputEvent {
   if (sender.state == UIGestureRecognizerStateBegan ||
       sender.state == UIGestureRecognizerStateChanged)
   {
-    CGPoint loc = [self scaledLocationOfGesture:sender];
+    CGPoint loc = [self logicalLocationOfGesture:sender];
     mouse_cursor_x = (int32_t)loc.x;
     mouse_cursor_y = (int32_t)loc.y;
     mouse_cursor_valid = true;
@@ -1155,10 +1147,10 @@ typedef struct UserInputEvent {
     }
 
     /* Always update cursor position from deltas — this is the only movement source
-     * when middle button is held (no UITouch, hover may stop on some iPadOS versions). */
-    CGFloat scale = [strongSelf->window->getView() contentScaleFactor];
-    strongSelf->mouse_cursor_x += (int32_t)(deltaX * scale);
-    strongSelf->mouse_cursor_y -= (int32_t)(deltaY * scale); /* Y is inverted. */
+     * when middle button is held (no UITouch, hover may stop on some iPadOS versions).
+     * Deltas stay in logical points to match the rest of the input path. */
+    strongSelf->mouse_cursor_x += (int32_t)deltaX;
+    strongSelf->mouse_cursor_y -= (int32_t)deltaY; /* Y is inverted. */
     strongSelf->mouse_cursor_valid = true;
 
     [strongSelf pushIndirectPointerCursorEvent];
@@ -1946,12 +1938,12 @@ void GHOST_WindowIOS::resignKeyWindow()
   m_systemIOS->current_active_window = nullptr;
 }
 
+/* Single conversion point from UIKit view coordinates to GHOST client coordinates.
+ * Both are logical points (see getClientBounds), matching the Cocoa backend, so the
+ * native pixel scale is reported separately via getNativePixelSize(). */
 CGPoint GHOST_WindowIOS::scalePointToWindow(CGPoint &point)
 {
-  CGPoint scaled_point;
-  scaled_point.x = point.x * getWindowScaleFactor();
-  scaled_point.y = point.y * getWindowScaleFactor();
-  return scaled_point;
+  return point;
 }
 
 #ifdef WITH_INPUT_IME

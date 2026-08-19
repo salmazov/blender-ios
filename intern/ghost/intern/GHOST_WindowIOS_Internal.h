@@ -87,8 +87,8 @@ struct UserInputEvent;
 - (void)setSystemAndWindowIOS:(GHOST_SystemIOS *)sysCocoa windowIOS:(GHOST_WindowIOS *)winCocoa;
 
 /* Scale a point from UIKit coordinates to native pixel coordinates. */
-- (CGPoint)scaledLocationOfTouch:(UITouch *)touch;
-- (CGPoint)scaledLocationOfGesture:(UIGestureRecognizer *)gesture;
+- (CGPoint)logicalLocationOfTouch:(UITouch *)touch;
+- (CGPoint)logicalLocationOfGesture:(UIGestureRecognizer *)gesture;
 - (void)updateMouseCursorFromTouch:(UITouch *)touch;
 
 /* Blender event generation. */
