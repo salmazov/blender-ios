@@ -320,8 +320,9 @@ void ShaderCache::load_kernel(DeviceKernel device_kernel,
 #    endif
 #  else
       /* iOS: Query the device for the maximum concurrent compilation tasks.
-       * Subtract one to avoid contention, and cap to limit peak memory (jetsam risk). */
-      if (@available(iOS 16.4, *)) {
+       * Subtract one to avoid contention, and cap to limit peak memory (jetsam risk).
+       * Note this property is only exposed on iOS 26.0+, unlike macOS where it landed in 13.3. */
+      if (@available(iOS 26.0, *)) {
         max_mtlcompiler_threads = max(2,
                                       int([mtlDevice maximumConcurrentCompilationTaskCount]) - 1);
       }
