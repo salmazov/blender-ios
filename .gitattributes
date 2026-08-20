@@ -109,3 +109,7 @@
 *.blob filter=lfs diff=lfs merge=lfs -text
 *.rgb filter=lfs diff=lfs merge=lfs -text
 scripts/modules/_bpy_internal/assets/remote_library/*_openapi.py linguist-generated=true
+
+# Fork-only assets are stored in git proper: LFS objects created in this fork are
+# not served by the upstream endpoint in .lfsconfig, so they 404 for anyone cloning.
+release/ios/Blender.app/Assets.xcassets/**/*.png -filter -diff -merge -text
