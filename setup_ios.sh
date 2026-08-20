@@ -160,7 +160,9 @@ fetch_lib() {
 
   info "Fetching lib/$lib_name (this may take a while, ~2 GB)…"
   cd "$REPO_ROOT"
-  GIT_LFS_SKIP_SMUDGE=0 git submodule update --init --depth 1 "lib/$lib_name"
+  # --checkout is required: these submodules set 'update = none', so a plain
+  # 'submodule update --init' silently skips them.
+  GIT_LFS_SKIP_SMUDGE=0 git submodule update --init --checkout --depth 1 "lib/$lib_name"
   ok "lib/$lib_name fetched"
 }
 

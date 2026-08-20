@@ -39,14 +39,22 @@ Building for iPad (iOS)
 - CMake 3.28+
 - Git LFS
 - An iPad running **iPadOS 26 or newer** (the minimum deployment target)
+- An Apple ID for code signing (a free one works, with the limits noted in step 5)
+
+Expect roughly 20 GB of disk space (repository, prebuilt libraries and one Xcode
+build directory) and a first build of 15-30 minutes.
 
 ### Quick Start
 
-An automated setup script is included:
+An automated setup script checks dependencies, fetches the prebuilt libraries and
+configures the Xcode project:
 
 ```sh
 ./setup_ios.sh
 ```
+
+It does not configure code signing, so you still need step 5 below to get the app
+onto a device. If the script fails, work through the manual steps instead.
 
 ### Manual Build
 
@@ -107,7 +115,41 @@ An automated setup script is included:
      -jobs $(sysctl -n hw.ncpu) build
    ```
 
-5. **Deploy** — connect your iPad and run from Xcode (requires a valid signing identity).
+5. **Sign and install on the iPad**
+
+   Signing is the step people most often get stuck on. With a **free** Apple ID
+   you must use a bundle identifier of your own — the default
+   (`org.blenderfoundation.blender.dev`) belongs to someone else and automatic
+   signing will fail. Pass your own when configuring:
+
+   ```sh
+   cmake -G Xcode -S . -B build_ios \
+     -DBLENDER_BUNDLE_IDENTIFIER=com.yourname.blender \
+     ...
+   ```
+
+   The development team is auto-detected from your keychain. If you have more
+   than one, set it explicitly with `-DBLENDER_DEVELOPMENT_TEAM=XXXXXXXXXX`
+   (the 10-character Team ID from the Apple Developer portal).
+
+   Then, in Xcode:
+
+   1. Sign in with your Apple ID under **Settings → Accounts**.
+   2. Select the **blender** target → **Signing & Capabilities** → tick
+      *Automatically manage signing* and pick your team.
+   3. Connect the iPad, choose it as the run destination, and press Run.
+   4. The first launch is blocked by iOS. On the iPad, go to
+      **Settings → General → VPN & Device Management**, tap your developer
+      profile and trust it, then launch the app again.
+
+   Free Apple ID limits worth knowing:
+
+   - The app stops launching after **7 days** and must be rebuilt from Xcode.
+   - Only **3** development-signed apps can be installed per device. If you see
+     *"maximum number of installed apps using a free developer profile"*, delete
+     another sideloaded app first.
+
+   A paid Apple Developer account removes both limits.
 
 ### Faster iteration (Ninja + ccache)
 
@@ -142,6 +184,18 @@ the build reports a missing `shader_tool`.
 
 Ninja also catches availability bugs that the Xcode generator hides, because it
 honours the configured deployment target instead of defaulting to the SDK version.
+
+### Troubleshooting
+
+| Symptom | Cause and fix |
+| --- | --- |
+| `Object does not exist on the server: [404]` during `git lfs pull` | LFS is pointing at GitHub, which does not host these objects. Make sure you are on a checkout that contains `.lfsconfig`, then re-run `git lfs pull`. |
+| Build fails with `The app icon set "AppIcon" did not have any applicable content` | LFS content was never fetched, so the icons are still pointer files. Run `git lfs pull && git lfs checkout`. |
+| `Skipping submodule 'lib/ios_arm64'`, or missing headers and libraries | The submodules set `update = none`; you need `git submodule update --init --checkout lib/ios_arm64`. |
+| `Could not find a package configuration file provided by "draco"` | Stale CMake cache from an older checkout. Delete `build_ios` and configure again. |
+| `unable to install ... maximum number of installed apps using a free developer profile` | Delete another sideloaded app from the iPad, or use a paid developer account. |
+| App installs but will not open | Trust the developer profile under **Settings → General → VPN & Device Management** on the iPad. |
+| Ninja build stops with a missing `shader_tool` | Build the host tools first: `ninja -C build_ios_ninja blender_cross_tools_compile`. |
 
 ### Known limitations
 
