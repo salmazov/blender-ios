@@ -50,22 +50,25 @@ An automated setup script is included:
 
 ### Manual Build
 
-1. **Clone, then pull LFS content from upstream**
+1. **Clone and fetch LFS content**
 
    ```sh
-   GIT_LFS_SKIP_SMUDGE=1 git clone git@github.com:salmazov/blender-ios.git
+   GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/salmazov/blender-ios.git
    cd blender-ios
    git checkout ios-new
-
-   # GitHub does not host the LFS objects, so add upstream as an LFS source.
-   git remote add lfs-fallback https://projects.blender.org/blender/blender.git
-   git config remote.lfs-fallback.pushurl no_push
-   git lfs pull lfs-fallback
+   git lfs pull
    ```
 
-   The LFS objects must come from `projects.blender.org`; the GitHub remote
-   returns 404 for them. Skipping this leaves app icons and data files as
-   pointer text files, and the build fails in the asset catalog step with
+   LFS objects are served from `projects.blender.org` rather than GitHub, which
+   the committed `.lfsconfig` handles automatically. Verify it worked — this
+   should report `PNG image data`, not `ASCII text`:
+
+   ```sh
+   file release/ios/Blender.app/Assets.xcassets/AppIcon.appiconset/blender_icon_1024x1024.png
+   ```
+
+   If it still says `ASCII text` the files are unresolved LFS pointers, and the
+   build will later fail with
    `The app icon set "AppIcon" did not have any applicable content`.
 
 2. **Fetch prebuilt libraries**

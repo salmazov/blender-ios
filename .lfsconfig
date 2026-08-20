@@ -1,0 +1,9 @@
+# Git LFS objects for this fork are served from Blender's own server rather than
+# GitHub. GitHub blocks LFS uploads to public forks, so this fork's LFS storage is
+# empty and every object would fail with "Object does not exist on the server [404]".
+#
+# Note pushing LFS objects to this endpoint is not possible without write access to
+# upstream, so pushes that would upload LFS content need --no-verify.
+[lfs]
+	url = https://projects.blender.org/blender/blender.git/info/lfs
+	locksverify = false
