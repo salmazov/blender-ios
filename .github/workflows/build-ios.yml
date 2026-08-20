@@ -1,0 +1,107 @@
+name: Build Blender iOS
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ios-new]
+
+jobs:
+  build:
+    # Apple Silicon hosted runner. If Xcode 26 isn't preinstalled on
+    # this image yet, switch to a self-hosted label instead, e.g.:
+    # runs-on: [self-hosted, macOS, arm64]
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout (skip LFS, submodules handled separately)
+        uses: actions/checkout@v4
+        with:
+          ref: ios-new
+          lfs: false
+          submodules: false
+
+      - name: Select Xcode 26
+        run: sudo xcode-select -s /Applications/Xcode_26.app/Contents/Developer
+
+      - name: Pull LFS objects from upstream Blender (GitHub 404s on these)
+        run: |
+          git lfs install
+          git remote add lfs-fallback https://projects.blender.org/blender/blender.git
+          git config remote.lfs-fallback.pushurl no_push
+          git lfs pull lfs-fallback
+
+      - name: Install build tools
+        run: brew install cmake ninja ccache
+
+      - name: Fetch prebuilt library submodules
+        run: |
+          git submodule update --init --checkout lib/ios_arm64
+          git submodule update --init --checkout lib/macos_arm64
+
+      # Speeds up repeat runs a lot; ccache alone won't help much on
+      # a from-scratch first build, but every run after this helps.
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/ccache
+          key: ccache-ios-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            ccache-ios-${{ runner.os }}-
+
+      - name: Configure with CMake (Ninja)
+        run: |
+          IOS_LIBDIR="$(pwd)/lib/ios_arm64"
+          IOS_SDK_ROOT="$(xcrun --sdk iphoneos --show-sdk-path)"
+          IOS_DEV_ROOT="$(dirname "$IOS_SDK_ROOT")"
+          cmake -G Ninja -S . -B build_ios \
+            -DCMAKE_SYSTEM_NAME=iOS \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DWITH_APPLE_CROSSPLATFORM=ON \
+            -DAPPLE_TARGET_DEVICE=ios \
+            -DWITH_COMPILER_CCACHE=ON \
+            -DCMAKE_FIND_ROOT_PATH="$IOS_DEV_ROOT;$(dirname "$IOS_DEV_ROOT");$IOS_LIBDIR"
+
+      - name: Build cross-compiled host tools first
+        run: ninja -C build_ios blender_cross_tools_compile
+
+      - name: Build Blender
+        run: ninja -C build_ios blender
+
+      # --- Optional: signed build for device install ---
+      # Add these repo secrets first (Settings -> Secrets and variables -> Actions):
+      #   BUILD_CERTIFICATE_BASE64, P12_PASSWORD,
+      #   PROVISIONING_PROFILE_BASE64, KEYCHAIN_PASSWORD
+      # - name: Import signing certificate & profile
+      #   run: |
+      #     echo "$BUILD_CERTIFICATE_BASE64" | base64 --decode > cert.p12
+      #     echo "$PROVISIONING_PROFILE_BASE64" | base64 --decode > profile.mobileprovision
+      #     security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+      #     security import cert.p12 -k build.keychain -P "$P12_PASSWORD" -T /usr/bin/codesign
+      #     mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+      #     cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
+      #   env:
+      #     BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+      #     P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+      #     PROVISIONING_PROFILE_BASE64: ${{ secrets.PROVISIONING_PROFILE_BASE64 }}
+      #     KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+
+      - name: Package as unsigned IPA
+        run: |
+          set -e
+          APP_PATH=$(find build_ios/bin -maxdepth 2 -name "*.app" -print -quit)
+          if [ -z "$APP_PATH" ]; then
+            echo "No .app bundle found under build_ios/bin" >&2
+            exit 1
+          fi
+          echo "Found app bundle: $APP_PATH"
+          mkdir -p ipa_out/Payload
+          cp -R "$APP_PATH" ipa_out/Payload/
+          cd ipa_out
+          zip -r -y ../Blender-unsigned.ipa Payload
+
+      - name: Upload unsigned IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: blender-ios-unsigned-ipa
+          path: Blender-unsigned.ipa
+          if-no-files-found: error
